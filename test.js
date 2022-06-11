@@ -27,7 +27,7 @@ qx.Class.define(
       {
         init : true,
         check : "Boolean",
-        event : "_changeRunning",
+        event : "changeRunning",
         apply : "_applyRunning",
         transform : function(value, old)
         {
@@ -88,13 +88,13 @@ qx.Class.define(
 
     properties :
     {
-      running :
-      {
-        refine : true,
-        init : 42,
-        check : "Number",
-        apply : "_applyRunning"
-      }
+      // running :
+      // {
+      //   refine : true,
+      //   init : 42,
+      //   check : "Number",
+      //   apply : "_applyRunning"
+      // }
     }
   });
 
@@ -135,7 +135,7 @@ console.log("sub after setting to false, instance.getRunning()=", subinstance.ge
 
 function _extend(superclass, subclass, properties)
 {
-  let             allProperties = superclass.$allProperties || {};
+  let             allProperties = superclass.$properties || {};
 
   // Ensure there are no properties defined that overwrite superclasses'
   // properties, unless "refine : true" is specified
