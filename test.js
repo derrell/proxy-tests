@@ -14,9 +14,11 @@ qx.Class.define(
   "tester.Superclass",
   {
     extend : Object,
-    construct : function()
+
+    construct : function(bRunning)
     {
-      console.log("Test constructor");
+      console.log(`Superclass constructor: bRunning=${bRunning}`);
+      this.running = bRunning;
     },
 
     properties :
@@ -43,14 +45,60 @@ qx.Class.define(
       num : 23,
       str : "hello world",
 
+      publicMethod : function()
+      {
+        console.log("superclass publicMethod called");
+      },
+
       _applyRunning : function(value, old)
       {
-        console.log(`apply running: value changing from ${old} to ${value}`);
+        console.log(
+          `superclass apply running: value changing from ${old} to ${value}`);
       }
     }
   });
 
-let superinstance = new tester.Superclass();
+qx.Class.define(
+  "tester.Subclass",
+  {
+    extend : tester.Superclass,
+
+    construct : function(num, bRunning)
+    {
+      console.log(`Subclass constructor: num=${num} bRunning=${bRunning}`);
+      this.base(bRunning); // super();
+      this.publicMethod();
+    },
+
+    members :
+    {
+      publicMethod : function()
+      {
+        console.log("subclass publicMethod called");
+        this.base.prototype.publicMethod.call(this); // super();
+      },
+
+      _applyRunning : function(value, old)
+      {
+        console.log(
+          `subclass apply running: value changing from ${old} to ${value}`);
+        this.base.prototype._applyRunning.call(this, value, old); // super();
+      }
+    },
+
+    properties :
+    {
+      running :
+      {
+        refine : true,
+        init : 42,
+        check : "Number",
+        apply : "_applyRunning"
+      }
+    }
+  });
+
+let superinstance = new tester.Superclass(false);
 console.log("superinstance=", superinstance);
 console.log("num=" + superinstance.num);
 console.log("str=" + superinstance.str);
@@ -70,27 +118,12 @@ console.log("running via isRunning()=", superinstance.isRunning());
 console.log("");
 console.log("defining tester.Subclass");
 
-qx.Class.define(
-  "tester.Subclass",
-  {
-    extend : tester.Superclass,
-
-    properties :
-    {
-      running :
-      {
-        refine : true,
-        init : 42,
-        check : "Number",
-      }
-    }
-  });
-
-let subinstance = new tester.Subclass();
+let subinstance = new tester.Subclass(23, true);
 console.log("");
 console.log("sub num=" + subinstance.num);
 console.log("sub str=" + subinstance.str);
 console.log("sub instance.getRunning()=", subinstance.getRunning());
+subinstance.running = true;
 subinstance.running = false;
 console.log("sub after setting to false, instance.getRunning()=", subinstance.getRunning());
 
@@ -120,23 +153,15 @@ function _extend(superclass, subclass, properties)
 
   // Create the subclass' prototype as a copy of the superclass' prototype
   subclass.prototype = Object.create(superclass.prototype);
-
-  // Save this class' properties
-  Object.defineProperty(
-    subclass,
-    "$properties",
-    {
-      value        : properties || {},
-      writable     : false,
-      configurable : false,
-      enumerable   : false
-    });
+  subclass.prototype.base = superclass;
+  subclass.prototype.constructor = subclass;
 
   // Save the full chain of properties for this class
   allProperties = Object.assign({}, allProperties, properties || {});
+console.log("assigning allProperties=", allProperties);
   Object.defineProperty(
     subclass,
-    "$allProperties",
+    "$properties",
     {
       value        : allProperties,
       writable     : false,
@@ -168,6 +193,7 @@ function _extend(superclass, subclass, properties)
               let             origValue = value;
               let             old = Reflect.get(obj, prop);
               let             properties = subclass.$properties[prop];
+console.log(`set: prop=${prop} properties=`, properties);
 
               // Is this a property?
               if (properties)
@@ -238,7 +264,7 @@ function _extend(superclass, subclass, properties)
       
       apply : function(target, _this, args)
       {
-        superclass.apply(_this, args);
+        // superclass.apply(_this, args); // auto-run superclass constructor
         subclass.apply(_this, args);
       }
     });
