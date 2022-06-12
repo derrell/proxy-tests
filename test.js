@@ -71,6 +71,11 @@ qx.Class.define(
       this.publicMethod();
     },
 
+    statics :
+    {
+      staticEntry : "I am static"
+    },
+
     members :
     {
       publicMethod : function()
@@ -152,6 +157,7 @@ let superinstance = new tester.Superclass(false);
 console.log("superinstance=", superinstance);
 console.log("num=" + superinstance.num);
 console.log("str=" + superinstance.str);
+console.log("staticEntry=" + tester.Subclass.staticEntry);
 
 // get and set property using new, getter/setter syntax
 console.log("running initial value=", superinstance.running);
@@ -387,7 +393,22 @@ function define(className, config)
     config.properties,
     config.proxyHandler);
 
-  for (let member in config.members)
+  // Add statics
+  for (let staticEntry in (config.statics || []))
+  {
+    Object.defineProperty(
+      clazz,
+      staticEntry,
+      {
+        value        : config.statics[staticEntry],
+        writable     : true,
+        configurable : true,
+        enumerable   : true
+      });
+  }
+
+  // Add members
+  for (let member in (config.members || []))
   {
     Object.defineProperty(
       clazz.prototype,
@@ -400,7 +421,8 @@ function define(className, config)
       });
   }
 
-  for (let property in config.properties)
+  // Add properties
+  for (let property in (config.properties || []))
   {
     let             propertyFirstUp;
 
