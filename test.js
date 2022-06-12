@@ -1,5 +1,6 @@
 //
-// Test program here. qx.Class and qx.Property implementations, below
+// Test program is here at the top.
+// qx.Class.define and and property implementations are below
 //
 
 let qx =
@@ -98,23 +99,67 @@ qx.Class.define(
     }
   });
 
+qx.Class.define(
+  "tester.Arr",
+  {
+    extend : Array,
+
+    // Show how qx.data.Array could be indexed rather than getItem()
+    proxyHandler :
+    {
+      get : function(target, prop)
+      {
+        return target.getItem(prop);
+      },
+
+      set : function(target, prop, value)
+      {
+        target.setItem(prop, value);
+      }
+    },
+
+    members :
+    {
+      getItem(i)
+      {
+        return "Item " + i + " is 42";
+      },
+
+      setItem(i, value)
+      {
+        console.log(`setItem ${i} to ${value}`);
+      }
+    }
+  });
+
+
+// Instantiate our superclass object and check member variable access
 let superinstance = new tester.Superclass(false);
 console.log("superinstance=", superinstance);
 console.log("num=" + superinstance.num);
 console.log("str=" + superinstance.str);
+
+// get and set property using new, getter/setter syntax
 console.log("running initial value=", superinstance.running);
 superinstance.running = false;
 console.log("running after assigning false=", superinstance.running);
+
+// set property using traditional function syntax
 superinstance.setRunning(true);
 console.log("running after assigning true first=", superinstance.running);
 console.log("getRunning returned ", superinstance.getRunning());
+
+// back to getter/setter syntax. The two syntaxes are interchangeable
 superinstance.running = true;
 console.log("running after assigning true second=", superinstance.running);
+
+// test check: "Boolean"'s togglePropertyName and isPropertyName functions
 console.log("");
 superinstance.toggleRunning();
 console.log("running after toggle=", superinstance.running);
 console.log("running via isRunning()=", superinstance.isRunning());
 
+// create a subclass to test inherited members and properties
 console.log("");
 console.log("defining tester.Subclass");
 
@@ -125,7 +170,12 @@ console.log("sub str=" + subinstance.str);
 console.log("sub instance.getRunning()=", subinstance.getRunning());
 subinstance.running = true;
 subinstance.running = false;
-console.log("sub after setting to false, instance.getRunning()=", subinstance.getRunning());
+console.log("sub after setting to false, instance.getRunning()=",
+            subinstance.getRunning());
+
+let arr = new tester.Arr();
+console.log("arr[2]=", arr[2]);
+arr[3] = 23;
 
 
 //
@@ -133,7 +183,7 @@ console.log("sub after setting to false, instance.getRunning()=", subinstance.ge
 //
 
 
-function _extend(superclass, subclass, properties)
+function _extend(superclass, subclass, properties, customProxyHandler)
 {
   let             allProperties = superclass.$properties || {};
 
@@ -158,7 +208,6 @@ function _extend(superclass, subclass, properties)
 
   // Save the full chain of properties for this class
   allProperties = Object.assign({}, allProperties, properties || {});
-console.log("assigning allProperties=", allProperties);
   Object.defineProperty(
     subclass,
     "$properties",
@@ -177,7 +226,7 @@ console.log("assigning allProperties=", allProperties);
       {
         let             proxy;
         let             handler;
-        const           obj = Object.create(subclass.prototype);
+        let             obj = Object.create(subclass.prototype);
 
         this.apply(target, obj, args);
 
@@ -193,7 +242,6 @@ console.log("assigning allProperties=", allProperties);
               let             origValue = value;
               let             old = Reflect.get(obj, prop);
               let             properties = subclass.$properties[prop];
-console.log(`set: prop=${prop} properties=`, properties);
 
               // Is this a property?
               if (properties)
@@ -248,6 +296,12 @@ console.log(`set: prop=${prop} properties=`, properties);
             }
           };
 
+        // If there's a custom proxy handler, ...
+        if (customProxyHandler)
+        {
+          obj = new Proxy(obj, customProxyHandler);
+        }
+
         proxy = new Proxy(obj, handler);
         Object.defineProperty(
           proxy,
@@ -283,7 +337,8 @@ function define(className, config)
   clazz = _extend(
     config.extend || Object,
     config.construct || function() {},
-    config.properties);
+    config.properties,
+    config.proxyHandler);
 
   for (let member in config.members)
   {
