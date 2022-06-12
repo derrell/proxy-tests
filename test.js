@@ -109,12 +109,26 @@ qx.Class.define(
     {
       get : function(target, prop)
       {
+        console.log("Arr proxyHandler.get: prop=", prop);
         return target.getItem(prop);
       },
 
       set : function(target, prop, value)
       {
+        console.log("Arr proxyHandler.set");
         target.setItem(prop, value);
+      }
+    },
+
+    properties :
+    {
+      arr :
+      {
+        initIfUndefined : () =>
+        {
+          console.log("Allocating a new array object");
+          return [];
+        }
       }
     },
 
@@ -176,7 +190,7 @@ console.log("sub after setting to false, instance.getRunning()=",
 let arr = new tester.Arr();
 console.log("arr[2]=", arr[2]);
 arr[3] = 23;
-
+console.log("arr.getArr()=", arr.getArr());
 
 //
 // qx.Class and qx.Property implementation
@@ -234,6 +248,28 @@ function _extend(superclass, subclass, properties, customProxyHandler)
           {
             get : function(obj, prop)
             {
+              let             properties = subclass.$properties[prop];
+
+              // If there's not yet a value created, create one if requested
+              if (typeof obj[prop] == "undefined" &&
+                  properties &&
+                  properties.initIfUndefined)
+              {
+                obj[prop] = properties.initIfUndefined();
+                return obj[prop];
+              }
+
+              // If there's a custom proxy handler, try it
+              if (customProxyHandler && customProxyHandler.get)
+              {
+                console.log("trying customProxyHandler.get...");
+                let value = customProxyHandler.get(obj, prop);
+                if (typeof value != "undefined")
+                {
+                  obj[prop] = value;
+                }
+              }
+
               return obj[prop];
             },
 
@@ -242,6 +278,14 @@ function _extend(superclass, subclass, properties, customProxyHandler)
               let             origValue = value;
               let             old = Reflect.get(obj, prop);
               let             properties = subclass.$properties[prop];
+
+              // If there's not yet a value created, create one if requested
+              if (typeof obj[prop] == "undefined" &&
+                  properties &&
+                  properties.initIfUndefined)
+              {
+                obj[prop] = properties.initIfUndefined();
+              }
 
               // Is this a property?
               if (properties)
@@ -288,19 +332,22 @@ function _extend(superclass, subclass, properties, customProxyHandler)
                     `Would generate event type ${properties.event} ` +
                       `{ value: ${value}, old: ${old} }`);
                 }
+
+                // Set the (possibly updated) value
+                obj[prop] = value;
+                return true;
               }
 
-              // Set the (possibly updated) value
-              obj[prop] = value;
+              // If there's a custom proxy handler, call it
+              if (customProxyHandler && customProxyHandler.set)
+              {
+                customProxyHandler.set(obj, prop, value);
+                return true;
+              }
+
               return true;
             }
           };
-
-        // If there's a custom proxy handler, ...
-        if (customProxyHandler)
-        {
-          obj = new Proxy(obj, customProxyHandler);
-        }
 
         proxy = new Proxy(obj, handler);
         Object.defineProperty(
