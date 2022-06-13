@@ -107,20 +107,30 @@ qx.Class.define(
 qx.Class.define(
   "tester.Arr",
   {
-    extend : Array,
+    extend : Object,
 
     // Show how qx.data.Array could be indexed rather than getItem()
     proxyHandler :
     {
       get : function(target, prop)
       {
-        console.log("Arr proxyHandler.get: prop=", prop);
+        // Ensure array store exists
+        if (! target.arr)
+        {
+          target.initArr();
+        }
+
         return target.getItem(prop);
       },
 
       set : function(target, prop, value)
       {
-        console.log("Arr proxyHandler.set");
+        // Ensure array store exists
+        if (! target.arr)
+        {
+          target.initArr();
+        }
+
         target.setItem(prop, value);
       }
     },
@@ -137,16 +147,26 @@ qx.Class.define(
       }
     },
 
+    construct : function()
+    {
+      this.base(arguments);
+      for (let i = 0; i < 3; i++)
+      {
+        this.setItem(i, "Item " + i);
+      }
+    },
+
     members :
     {
       getItem(i)
       {
-        return "Item " + i + " is 42";
+        return this.getArr()[i];
       },
 
       setItem(i, value)
       {
         console.log(`setItem ${i} to ${value}`);
+        this.getArr()[i] = value;
       }
     }
   });
@@ -154,49 +174,50 @@ qx.Class.define(
 
 // Instantiate our superclass object and check member variable access
 let superinstance = new tester.Superclass(false);
-console.log("superinstance=", superinstance);
-console.log("num=" + superinstance.num);
-console.log("str=" + superinstance.str);
-console.log("staticEntry=" + tester.Subclass.staticEntry);
+assert("superinstance.num == 23", superinstance.num == 23);
+assert("superinstance.str == 'hello world'",
+       superinstance.str == 'hello world');
 
 // get and set property using new, getter/setter syntax
-console.log("running initial value=", superinstance.running);
-superinstance.running = false;
-console.log("running after assigning false=", superinstance.running);
+assert("running initial value === false", superinstance.running === false);
+superinstance.running = true;
+assert("running after assigning === true", superinstance.running === true);
 
 // set property using traditional function syntax
-superinstance.setRunning(true);
-console.log("running after assigning true first=", superinstance.running);
-console.log("getRunning returned ", superinstance.getRunning());
+superinstance.setRunning(false);
+assert("running after setRunning(false) === false",
+       superinstance.running === false);
+assert("getRunning() returned false", superinstance.getRunning() === false);
 
 // back to getter/setter syntax. The two syntaxes are interchangeable
 superinstance.running = true;
-console.log("running after assigning true second=", superinstance.running);
+assert("running after assigning true === true",
+       superinstance.running === true);
 
 // test check: "Boolean"'s togglePropertyName and isPropertyName functions
 console.log("");
 superinstance.toggleRunning();
-console.log("running after toggle=", superinstance.running);
-console.log("running via isRunning()=", superinstance.isRunning());
-
-// create a subclass to test inherited members and properties
-console.log("");
-console.log("defining tester.Subclass");
+assert("running after toggle === false", superinstance.running === false);
+assert("isRunning() === false", superinstance.isRunning() === false);
 
 let subinstance = new tester.Subclass(23, true);
 console.log("");
-console.log("sub num=" + subinstance.num);
-console.log("sub str=" + subinstance.str);
-console.log("sub instance.getRunning()=", subinstance.getRunning());
-subinstance.running = true;
+assert("staticEntry === 'I am static'",
+       tester.Subclass.staticEntry === 'I am static');
+assert("sub num === 23", subinstance.num === 23);
+assert("sub str === 'hello world'", subinstance.str === 'hello world');
+assert("sub getRunning() === true", subinstance.getRunning() === true);
 subinstance.running = false;
-console.log("sub after setting to false, instance.getRunning()=",
-            subinstance.getRunning());
+assert("sub after setting to false, sub getRunning() === false",
+            subinstance.getRunning() === false);
 
 let arr = new tester.Arr();
-console.log("arr[2]=", arr[2]);
+arr.setItem(3, 42);
+assert("arr.getArr() === 'Item 0,Item 1,Item 2,42'",
+       arr.getArr().toString() == 'Item 0,Item 1,Item 2,42');
 arr[3] = 23;
-console.log("arr.getArr()=", arr.getArr());
+assert("arr.getArr() === 'Item 0,Item 1,Item 2,23'",
+       arr.getArr().toString() == 'Item 0,Item 1,Item 2,23');
 
 //
 // qx.Class and qx.Property implementation
@@ -259,8 +280,6 @@ function _extend(
         let             handler;
         let             obj = Object.create(subclass.prototype);
 
-        this.apply(target, obj, args);
-
         handler =
           {
             get : function(obj, prop)
@@ -279,7 +298,6 @@ function _extend(
               // If there's a custom proxy handler, try it
               if (customProxyHandler && customProxyHandler.get)
               {
-                console.log("trying customProxyHandler.get...");
                 let value = customProxyHandler.get(obj, prop);
                 if (typeof value != "undefined")
                 {
@@ -367,15 +385,8 @@ function _extend(
           };
 
         proxy = new Proxy(obj, handler);
-        Object.defineProperty(
-          proxy,
-          "$handler",
-          {
-            value        : handler,
-            writable     : false,
-            configurable : false,
-            enumerable   : false
-          });
+
+        this.apply(target, proxy, args);
 
         return proxy;
       },
@@ -495,6 +506,33 @@ function define(className, config)
           enumerable   : false
         });
 
+      // If there's an init or initIfUndefined handler, ...
+      if (typeof config.properties[property].init != "undefined" ||
+          typeof config.properties[property].initIfUndefined == "function")
+      {
+        // ... then create initPropertyName
+        Object.defineProperty(
+          clazz.prototype,
+          `init${propertyFirstUp}`,
+          {
+            value        : function()
+            {
+              if (config.properties[property].initIfUndefined &&
+                 typeof this[property] == "undefined")
+              {
+                this[property] = config.properties[property].initIfUndefined();
+              }
+              else if (config.properties[property].init)
+              {
+                this[property] = config.properties[property].init;
+              }
+            },
+            writable     : false,
+            configurable : false,
+            enumerable   : false
+          });
+      }
+
       // If this is a boolean, as indicated by check : "Boolean" ...
       if (typeof config.properties[property].check == "string" &&
           config.properties[property].check == "Boolean")
@@ -583,4 +621,12 @@ function base(args, varargs)
       Array.prototype.slice.call(arguments, 1)
     );
   }
+}
+
+function assert(message, assertionSuccess)
+{
+  console.log(
+    (assertionSuccess ? "OK  " : "FAIL") +
+      " " +
+      message);
 }
