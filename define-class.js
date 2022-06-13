@@ -14,13 +14,13 @@ function define(className, config)
     config.proxyHandler);
 
   // Add statics
-  for (let staticEntry in (config.statics || []))
+  for (let key in (config.statics || []))
   {
     Object.defineProperty(
       clazz,
-      staticEntry,
+      key,
       {
-        value        : config.statics[staticEntry],
+        value        : config.statics[key],
         writable     : true,
         configurable : true,
         enumerable   : true
@@ -28,23 +28,23 @@ function define(className, config)
   }
 
   // Add members
-  for (let member in (config.members || []))
+  for (let key in (config.members || []))
   {
     // Allow easily identifying this method
-    config.members[member].displayName = `${className}.${member}()`;
+    config.members[key].displayName = `${className}.${key}()`;
 
     // Allow base calls
-    if (typeof config.members[member] == "function" &&
-        member in clazz.prototype)
+    if (typeof config.members[key] == "function" &&
+        key in clazz.prototype)
     {
-      config.members[member].base = clazz.prototype[member];
+      config.members[key].base = clazz.prototype[key];
     }
 
     Object.defineProperty(
       clazz.prototype,
-      member,
+      key,
       {
-        value        : config.members[member],
+        value        : config.members[key],
         writable     : true,
         configurable : true,
         enumerable   : true
@@ -52,25 +52,25 @@ function define(className, config)
   }
 
   // Add properties
-  for (let property in (config.properties || []))
+  for (let key in (config.properties || []))
   {
     let             propertyFirstUp;
 
     // Create the property variable
     Object.defineProperty(
       clazz.prototype,
-      property,
+      key,
       {
-        value        : config.properties[property].init,
-        writable     : ("readonly" in config.properties[property]
-                        ? config.members[property].readonly
+        value        : config.properties[key].init,
+        writable     : ("readonly" in config.properties[key]
+                        ? config.members[key].readonly
                         : true),
         configurable : false,
         enumerable   : false
       });
 
     // Capitalize the property name
-    propertyFirstUp = property[0].toUpperCase() + property.substr(1);
+    propertyFirstUp = key[0].toUpperCase() + key.substr(1);
 
     // Create the legacy property getter, getPropertyName
     Object.defineProperty(
@@ -79,7 +79,7 @@ function define(className, config)
       {
         value        : function()
         {
-          return this[property];
+          return this[key];
         },
         writable     : false,
         configurable : false,
@@ -87,7 +87,7 @@ function define(className, config)
       });
 
     // Unless told not to, create the legacy methods
-    if (! config.properties[property].noLegacyMethods)
+    if (! config.properties[key].noLegacyMethods)
     {
       // Create the legacy property setter, setPropertyName
       Object.defineProperty(
@@ -96,16 +96,16 @@ function define(className, config)
         {
           value        : function(value)
           {
-            this[property] = value;
+            this[key] = value;
           },
           writable     : false,
           configurable : false,
           enumerable   : false
         });
 
-      // If there's an init or initIfUndefined handler, ...
-      if (typeof config.properties[property].init != "undefined" ||
-          typeof config.properties[property].initIfUndefined == "function")
+      // If there's an init or initFunction handler, ...
+      if (typeof config.properties[key].init != "undefined" ||
+          typeof config.properties[key].initFunction == "function")
       {
         // ... then create initPropertyName
         Object.defineProperty(
@@ -114,14 +114,13 @@ function define(className, config)
           {
             value        : function()
             {
-              if (config.properties[property].initIfUndefined &&
-                 typeof this[property] == "undefined")
+              if (config.properties[key].initFunction)
               {
-                this[property] = config.properties[property].initIfUndefined();
+                this[key] = config.properties[key].initFunction();
               }
-              else if (config.properties[property].init)
+              else if (config.properties[key].init)
               {
-                this[property] = config.properties[property].init;
+                this[key] = config.properties[key].init;
               }
             },
             writable     : false,
@@ -131,8 +130,8 @@ function define(className, config)
       }
 
       // If this is a boolean, as indicated by check : "Boolean" ...
-      if (typeof config.properties[property].check == "string" &&
-          config.properties[property].check == "Boolean")
+      if (typeof config.properties[key].check == "string" &&
+          config.properties[key].check == "Boolean")
       {
         // ... then create isPropertyName and togglePropertyName
         Object.defineProperty(
@@ -141,7 +140,7 @@ function define(className, config)
           {
             value        : function()
             {
-              return !! this[property];
+              return !! this[key];
             },
             writable     : false,
             configurable : false,
@@ -154,7 +153,7 @@ function define(className, config)
           {
             value        : function()
             {
-              this[property] = ! this[property];
+              this[key] = ! this[key];
             },
             writable     : false,
             configurable : false,
@@ -176,7 +175,6 @@ function define(className, config)
       if (! bExists && isLast)
       {
         path[component] = clazz;
-        console.log("Created path ", path);
       }
       else if (! bExists)
       {
