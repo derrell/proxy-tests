@@ -67,7 +67,7 @@ qx.Class.define(
     construct : function(num, bRunning)
     {
       console.log(`Subclass constructor: num=${num} bRunning=${bRunning}`);
-      this.base(bRunning); // super();
+      this.base(arguments, bRunning); // super();
       this.publicMethod();
     },
 
@@ -81,14 +81,14 @@ qx.Class.define(
       publicMethod : function()
       {
         console.log("subclass publicMethod called");
-        this.base.prototype.publicMethod.call(this); // super();
+        this.base(arguments);
       },
 
       _applyRunning : function(value, old)
       {
         console.log(
           `subclass apply running: value changing from ${old} to ${value}`);
-        this.base.prototype._applyRunning.call(this, value, old); // super();
+        this.base(arguments, value, old);
       }
     },
 
@@ -203,7 +203,12 @@ console.log("arr.getArr()=", arr.getArr());
 //
 
 
-function _extend(superclass, subclass, properties, customProxyHandler)
+function _extend(
+  className,
+  superclass,
+  subclass,
+  properties,
+  customProxyHandler)
 {
   let             allProperties = superclass.$properties || {};
 
@@ -221,9 +226,15 @@ function _extend(superclass, subclass, properties, customProxyHandler)
     }
   }
 
+  // Allow easily identifying this class
+  subclass.displayName = className + "()";
+
+  // Provide access to the superclass for base calls
+  subclass.base = superclass;
+
   // Create the subclass' prototype as a copy of the superclass' prototype
   subclass.prototype = Object.create(superclass.prototype);
-  subclass.prototype.base = superclass;
+  subclass.prototype.base = base;
   subclass.prototype.constructor = subclass;
 
   // Save the full chain of properties for this class
@@ -388,6 +399,7 @@ function define(className, config)
   let             classnameComponents;
 
   clazz = _extend(
+    className,
     config.extend || Object,
     config.construct || function() {},
     config.properties,
@@ -410,6 +422,16 @@ function define(className, config)
   // Add members
   for (let member in (config.members || []))
   {
+    // Allow easily identifying this method
+    config.members[member].displayName = `${className}.${member}()`;
+
+    // Allow base calls
+    if (typeof config.members[member] == "function" &&
+        member in clazz.prototype)
+    {
+      config.members[member].base = clazz.prototype[member];
+    }
+
     Object.defineProperty(
       clazz.prototype,
       member,
@@ -541,3 +563,24 @@ function define(className, config)
   return clazz;
 }
 
+function base(args, varargs)
+{
+  if (typeof args.callee.base != "function")
+  {
+    throw new Error(
+      "Cannot call super class. Method is not derived: " +
+        args.callee.displayName);
+  }
+
+  if (arguments.length === 1)
+  {
+    return args.callee.base.call(this);
+  }
+  else
+  {
+    return args.callee.base.apply(
+      this,
+      Array.prototype.slice.call(arguments, 1)
+    );
+  }
+}
