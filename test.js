@@ -1,8 +1,3 @@
-//
-// Test program is here at the top.
-// qx.Class.define and and property implementations are below
-//
-
 const { define, assert } = require("./define-class");
 
 let qx =
@@ -141,7 +136,7 @@ qx.Class.define(
     {
       arr :
       {
-        initIfUndefined : () =>
+        initFunction : () =>
         {
           console.log("Allocating a new array object");
           return [];

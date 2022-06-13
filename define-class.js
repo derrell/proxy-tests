@@ -259,15 +259,6 @@ function _extend(
             {
               let             properties = subclass.$properties[prop];
 
-              // If there's not yet a value created, create one if requested
-              if (typeof obj[prop] == "undefined" &&
-                  properties &&
-                  properties.initIfUndefined)
-              {
-                obj[prop] = properties.initIfUndefined();
-                return obj[prop];
-              }
-
               // If there's a custom proxy handler, try it
               if (customProxyHandler && customProxyHandler.get)
               {
@@ -286,14 +277,6 @@ function _extend(
               let             origValue = value;
               let             old = Reflect.get(obj, prop);
               let             properties = subclass.$properties[prop];
-
-              // If there's not yet a value created, create one if requested
-              if (typeof obj[prop] == "undefined" &&
-                  properties &&
-                  properties.initIfUndefined)
-              {
-                obj[prop] = properties.initIfUndefined();
-              }
 
               // Is this a property?
               if (properties)
