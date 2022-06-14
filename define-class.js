@@ -397,6 +397,7 @@ function _extend(
                 return true;
               }
 
+              obj[prop] = value;
               return true;
             }
           };

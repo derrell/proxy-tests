@@ -65,6 +65,7 @@ qx.Class.define(
     {
       console.log(`Subclass constructor: num=${num} bRunning=${bRunning}`);
       this.base(arguments, bRunning); // super();
+      this.num = num;
       this.publicMethod();
     },
 
@@ -231,6 +232,55 @@ qx.Class.define(
     subinstance.running = false;
     assert("sub after setting to false, sub getRunning() === false",
                 subinstance.getRunning() === false);
+
+    let arr = new tester.Arr();
+    arr.setItem(3, 42);
+    assert("arr.getArr() === 'Item 0,Item 1,Item 2,42'",
+           arr.getArr().toString() == 'Item 0,Item 1,Item 2,42');
+    arr[3] = 23;
+    assert("arr[3]=23 yields arr[3] === 23", arr[3] === 23);
+    assert("arr.getArr() === 'Item 0,Item 1,Item 2,23'",
+           arr.getArr().toString() == 'Item 0,Item 1,Item 2,23');
+
+    console.log("");
+    console.log("Testing native class extending qooxdoo class...");
+    class NativeClass extends tester.Subclass
+    {
+      constructor()
+      {
+        super(13, false);
+        assert("native class super(): num === 13", this.num === 13);
+        this.num = 42;
+        assert("native class assignment: num === 42", this.num === 42);
+      }
+    }
+    let nativeClass = new NativeClass();
+
+    //
+    // TODO: Extending a qooxdoo class from a native class.
+    //
+    // We can't extend a qooxdoo class from a native class because
+    // there's no way (that I've found yet) to call the constructor of
+    // the native class without using `new NativeClass()`. This will have
+    // to remain a work in progress...
+    //
+    // console.log("Testing qooxdoo class extending native class...");
+    // qx.Class.define(
+    //   "tester.SubNative",
+    //   {
+    //     extend : NativeClass,
+
+    //     construct : function()
+    //     {
+    //       this.base(arguments);
+    //       console.log("this.num=", this.num);
+    //       assert("Class extended from native class: this.num === 42",
+    //              this.num === 42);
+    //     }
+    //   });
+    // let subNativeClass = new tester.SubNative();
+
+    // Keep these delay tests last in the test...
     console.log("setting async delay property; should delay a few seconds");
     let startTime = new Date();
     await subinstance.setDelayAsync(0);
@@ -243,14 +293,5 @@ qx.Class.define(
     console.log("returned from delay getter");
     assert("async getter delays more than 1 second",
            new Date().getTime() > startTime.getTime() + 1000);
-
-    let arr = new tester.Arr();
-    arr.setItem(3, 42);
-    assert("arr.getArr() === 'Item 0,Item 1,Item 2,42'",
-           arr.getArr().toString() == 'Item 0,Item 1,Item 2,42');
-    arr[3] = 23;
-    assert("arr[3]=23 yields arr[3] === 23", arr[3] === 23);
-    assert("arr.getArr() === 'Item 0,Item 1,Item 2,23'",
-           arr.getArr().toString() == 'Item 0,Item 1,Item 2,23');
   })();
 
