@@ -1,19 +1,19 @@
 This is work in progress towards a reimplementation of the qooxdoo
 Class and Property systems.
 
-* Code organization
+# Code organization
 The code that will eventually move into qx.Class (and possibly
 qx.core.Property, although it's yet to be determined if that is even
 needed), is in `define-class.js`. For simplicity of testing, this file
 is currently a `require()`d module. It won't, of course, be such in
 its final implementaiton.
 
-The test program is `test.js.
+The test program is `test.js`.
 
-* How to run tests
+# How to run tests
 - node test.js
 
-* Legacy Class features currently implemented
+# Legacy Class features currently implemented
 - [ ] type
   - [ ] abstract
   - [ ] static
@@ -30,7 +30,7 @@ The test program is `test.js.
 - [ ] defer
 - [ ] destruct
 
-* Legacy Property features currently implemented
+# Legacy Property features currently implemented
 - [x] check (currently just says what it would do)
 - [ ] stock check strings mapped to check methods
 - [x] apply (as both string member name and as function)
@@ -62,7 +62,7 @@ The test program is `test.js.
   - [ ] setThemedProperty()
   - [ ] resetThemedProperty()
 
-* John's requested new Property features currently implemented
+# John's requested new Property features currently implemented
 - [x] native properties
 - [x] properties are first-class objects
 - [x] storage can be completely replaced
@@ -84,5 +84,5 @@ The test program is `test.js.
   - [ ] on-demand
   - [ ] transparant, async object destructors and garbage collection
 
-* qx.data.Array features
+# qx.data.Array features
 - [x] indexed values accessed as if it were a native array
