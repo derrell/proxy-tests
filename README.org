@@ -83,3 +83,6 @@ The test program is `test.js.
   - [ ] soft
   - [ ] on-demand
   - [ ] transparant, async object destructors and garbage collection
+
+* qx.data.Array features
+- [x] indexed values accessed as if it were a native array
