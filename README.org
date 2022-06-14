@@ -73,6 +73,13 @@ The test program is `test.js.
 - [ ] immutability and mutation detection
 - [ ] fast property definition
 - [ ] integration with references
+  - [x] initFunction (in lieu of init)
+    Add to a property definition, this is a function that will be
+    called with no arguments, when `initPropertyName()` is called. The
+    function should return the initial value. This allows a unique
+    initial value, even if it's a reference type, per object instance.
+    If `initFunction` is specified, `init` is ignored even if
+    provided. Only one of the two should be provided.
   - [ ] hard
   - [ ] weak
   - [ ] soft
