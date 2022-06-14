@@ -24,6 +24,7 @@ qx.Class.define(
       running :
       {
         init : true,
+//        readonly : true,
         check : "Boolean",
         event : "changeRunning",
         apply : "_applyRunning",
@@ -56,6 +57,11 @@ qx.Class.define(
     }
   });
 
+let subclassStorage =
+    {
+      externallyStored : 0
+    };
+
 qx.Class.define(
   "tester.Subclass",
   {
@@ -65,6 +71,7 @@ qx.Class.define(
     {
       console.log(`Subclass constructor: num=${num} bRunning=${bRunning}`);
       this.base(arguments, bRunning); // super();
+      this.initExternallyStored();
       this.num = num;
       this.publicMethod();
     },
@@ -99,6 +106,25 @@ qx.Class.define(
       //   check : "Number",
       //   apply : "_applyRunning"
       // },
+
+      externallyStored :
+      {
+        init : 10,
+        storage :
+        {
+          get(prop)
+          {
+            console.log("in externallyStored getter");
+            return subclassStorage[prop];
+          },
+
+          set(prop, value)
+          {
+            console.log("in externallyStored setter");
+            subclassStorage[prop] = value;
+          }
+        }
+      },
 
       delay :
       {
@@ -232,6 +258,15 @@ qx.Class.define(
     subinstance.running = false;
     assert("sub after setting to false, sub getRunning() === false",
                 subinstance.getRunning() === false);
+
+    // storage tests
+    assert("initial value of externallyStored === 10",
+           subclassStorage.externallyStored === 10);
+    subinstance.externallyStored = 20;
+    assert("post-change value of externallyStored === 20",
+           subclassStorage.externallyStored === 20);
+    assert("retrieved value of externallyStored === 20",
+           subinstance.externallyStored === 20);
 
     let arr = new tester.Arr();
     arr.setItem(3, 42);

@@ -54,21 +54,49 @@ function define(className, config)
   }
 
   // Add properties
-  for (let key in (config.properties || []))
+  let properties = config.properties || {};
+  for (let key in properties)
   {
-    let             property = config.properties[key];
+    let             property = properties[key];
     let             propertyFirstUp= key[0].toUpperCase() + key.substr(1);
+    const           storage =
+      properties.storage
+        ? properties.storage
+        : {
+            get(prop)
+            {
+              return this[prop];
+            },
 
-    // Create the property variable
-    Object.defineProperty(
-      clazz.prototype,
-      key,
-      {
-        value        : property.init,
-        writable     : "readonly" in property ? property.readonly : true,
-        configurable : false,
-        enumerable   : false
-      });
+            set(prop, value)
+            {
+              if (property.readonly)
+              {
+                throw new Error(
+                  `Attempt to set value of readonly property ${prop}`);
+              }
+              this[prop] = value;
+            }
+          };
+
+    // If using the default storage mechanism, create the property.
+    //
+    // If using own storage mechanism, it is required to either
+    // initialize the value in the storage mechanism, or call
+    // `initPropertyName()` from the constructor to set the initial
+    // value.
+    if (! properties.storage)
+    {
+      Object.defineProperty(
+        clazz.prototype,
+        key,
+        {
+          value        : property.init,
+          writable     : "readonly" in property ? property.readonly : true,
+          configurable : false,
+          enumerable   : false
+        });
+    }
 
     // Unless told not to, create the legacy methods
     if (! property.noLegacyMethods)
@@ -114,11 +142,11 @@ function define(className, config)
             {
               if (property.initFunction)
               {
-                this[key] = property.initFunction();
+                storage.set.call(this, key, property.initFunction());
               }
               else if (property.init)
               {
-                this[key] = property.init;
+                storage.set.call(this, key, property.init);
               }
             },
             writable     : false,
@@ -317,6 +345,15 @@ function _extend(
             get : function(obj, prop)
             {
               let             property = subclass.$properties[prop];
+              const           storage =
+                property && property.storage
+                    ? property.storage
+                    : {
+                        get(prop)
+                        {
+                          return this[prop];
+                        }
+                      };
 
               // If there's a custom proxy handler, try it
               if (customProxyHandler && customProxyHandler.get)
@@ -324,11 +361,11 @@ function _extend(
                 let value = customProxyHandler.get(obj, prop);
                 if (typeof value != "undefined")
                 {
-                  obj[prop] = value;
+                  return value;
                 }
               }
 
-              return obj[prop];
+              return storage.get.call(obj, prop);
             },
 
             set : function(obj, prop, value)
@@ -336,6 +373,15 @@ function _extend(
               let             origValue = value;
               let             old = Reflect.get(obj, prop);
               let             property = subclass.$properties[prop];
+              const           storage =
+                property && property.storage
+                    ? property.storage
+                    : {
+                        set(prop, value)
+                        {
+                          this[prop] = value;
+                        }
+                      };
 
               // Is this a property?
               if (property)
@@ -386,7 +432,12 @@ function _extend(
                 }
 
                 // Set the (possibly updated) value
-                obj[prop] = value;
+                if (property.readonly)
+                {
+                  throw new Error(
+                    `Attempt to set value of readonly property ${prop}`);
+                }
+                storage.set.call(obj, prop, value);
                 return true;
               }
 
@@ -397,7 +448,7 @@ function _extend(
                 return true;
               }
 
-              obj[prop] = value;
+              storage.set.call(obj, prop, value);
               return true;
             }
           };
