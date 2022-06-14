@@ -30,21 +30,23 @@ function define(className, config)
   // Add members
   for (let key in (config.members || []))
   {
+    let             member = config.members[key];
+
     // Allow easily identifying this method
-    config.members[key].displayName = `${className}.${key}()`;
+    member.displayName = `${className}.${key}()`;
 
     // Allow base calls
-    if (typeof config.members[key] == "function" &&
+    if (typeof member == "function" &&
         key in clazz.prototype)
     {
-      config.members[key].base = clazz.prototype[key];
+      member.base = clazz.prototype[key];
     }
 
     Object.defineProperty(
       clazz.prototype,
       key,
       {
-        value        : config.members[key],
+        value        : member,
         writable     : true,
         configurable : true,
         enumerable   : true
@@ -54,42 +56,38 @@ function define(className, config)
   // Add properties
   for (let key in (config.properties || []))
   {
-    let             propertyFirstUp;
+    let             property = config.properties[key];
+    let             propertyFirstUp= key[0].toUpperCase() + key.substr(1);
 
     // Create the property variable
     Object.defineProperty(
       clazz.prototype,
       key,
       {
-        value        : config.properties[key].init,
-        writable     : ("readonly" in config.properties[key]
-                        ? config.members[key].readonly
-                        : true),
-        configurable : false,
-        enumerable   : false
-      });
-
-    // Capitalize the property name
-    propertyFirstUp = key[0].toUpperCase() + key.substr(1);
-
-    // Create the legacy property getter, getPropertyName
-    Object.defineProperty(
-      clazz.prototype,
-      `get${propertyFirstUp}`,
-      {
-        value        : function()
-        {
-          return this[key];
-        },
-        writable     : false,
+        value        : property.init,
+        writable     : "readonly" in property ? property.readonly : true,
         configurable : false,
         enumerable   : false
       });
 
     // Unless told not to, create the legacy methods
-    if (! config.properties[key].noLegacyMethods)
+    if (! property.noLegacyMethods)
     {
-      // Create the legacy property setter, setPropertyName
+      // Create the legacy property getter, getPropertyName
+      Object.defineProperty(
+        clazz.prototype,
+        `get${propertyFirstUp}`,
+        {
+          value        : function()
+          {
+            return this[key];
+          },
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+
+      // Create the legacy property setter, setPropertyName.
       Object.defineProperty(
         clazz.prototype,
         `set${propertyFirstUp}`,
@@ -104,8 +102,8 @@ function define(className, config)
         });
 
       // If there's an init or initFunction handler, ...
-      if (typeof config.properties[key].init != "undefined" ||
-          typeof config.properties[key].initFunction == "function")
+      if (typeof property.init != "undefined" ||
+          typeof property.initFunction == "function")
       {
         // ... then create initPropertyName
         Object.defineProperty(
@@ -114,13 +112,13 @@ function define(className, config)
           {
             value        : function()
             {
-              if (config.properties[key].initFunction)
+              if (property.initFunction)
               {
-                this[key] = config.properties[key].initFunction();
+                this[key] = property.initFunction();
               }
-              else if (config.properties[key].init)
+              else if (property.init)
               {
-                this[key] = config.properties[key].init;
+                this[key] = property.init;
               }
             },
             writable     : false,
@@ -130,8 +128,8 @@ function define(className, config)
       }
 
       // If this is a boolean, as indicated by check : "Boolean" ...
-      if (typeof config.properties[key].check == "string" &&
-          config.properties[key].check == "Boolean")
+      if (typeof property.check == "string" &&
+          property.check == "Boolean")
       {
         // ... then create isPropertyName and togglePropertyName
         Object.defineProperty(
@@ -160,6 +158,67 @@ function define(className, config)
             enumerable   : false
           });
       }
+    }
+
+    if (property.async && property.get)
+    {
+      let             get;
+
+      // It does. Call it.
+      if (typeof property.get == "function")
+      {
+        get = property.get;
+      }
+      else // otherwise it's a string
+      {
+        get = clazz.prototype[property.get];
+      }
+
+      // Create the async property getter, getPropertyNameAsync
+      Object.defineProperty(
+        clazz.prototype,
+        `get${propertyFirstUp}Async`,
+        {
+          value        : function()
+          {
+            return get.call(this);
+          },
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    if (property.async && property.apply)
+    {
+      let             apply;
+
+      // It does. Call it.
+      if (typeof property.apply == "function")
+      {
+        apply = property.apply;
+      }
+      else // otherwise it's a string
+      {
+        apply = clazz.prototype[property.apply];
+      }
+      
+      // Create the async property setter, setPropertyNameAsync.
+      Object.defineProperty(
+        clazz.prototype,
+        `set${propertyFirstUp}Async`,
+        {
+          value        : function(value)
+          {
+            let             old = this[key];
+            
+            this[key] = value;
+            return apply.call(this, value, old);
+          },
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
     }
   }
 
@@ -257,7 +316,7 @@ function _extend(
           {
             get : function(obj, prop)
             {
-              let             properties = subclass.$properties[prop];
+              let             property = subclass.$properties[prop];
 
               // If there's a custom proxy handler, try it
               if (customProxyHandler && customProxyHandler.get)
@@ -276,51 +335,53 @@ function _extend(
             {
               let             origValue = value;
               let             old = Reflect.get(obj, prop);
-              let             properties = subclass.$properties[prop];
+              let             property = subclass.$properties[prop];
 
               // Is this a property?
-              if (properties)
+              if (property)
               {
                 // Yup. Does it have a transform method?
-                if (properties.transform)
+                if (property.transform)
                 {
                   // It does. Call it. It returns the new value.
-                  if (typeof properties.transform == "function")
+                  if (typeof property.transform == "function")
                   {
-                    value = properties.transform.call(obj, value, old);
+                    value = property.transform.call(obj, value, old);
                   }
                   else // otherwise it's a string
                   {
-                    value = obj[properties.transform].call(obj, value, old);
+                    value = obj[property.transform].call(obj, value, old);
                   }
                 }
 
                 // Does it have a check to be done?
-                if (properties.check)
+                if (property.check)
                 {
                   console.log(
-                    `Would be checking ${value} against ${properties.check}`);
+                    `Would be checking ${value} against ${property.check}`);
                 }
 
-                // Does it have an apply method?
-                if (properties.apply)
+                // Does it a synchronous method with an apply method?
+                // (Async properties' apply method is called directly from
+                // setPropertyNameAsync() )
+                if (property.apply && ! property.async)
                 {
                   // It does. Call it.
-                  if (typeof properties.apply == "function")
+                  if (typeof property.apply == "function")
                   {
-                    properties.apply.call(obj, value, old);
+                    property.apply.call(obj, value, old);
                   }
                   else // otherwise it's a string
                   {
-                    obj[properties.apply].call(obj, value, old);
+                    obj[property.apply].call(obj, value, old);
                   }
                 }
 
                 // Are we requested to generate an event?
-                if (properties.event && value != old)
+                if (property.event && value != old)
                 {
                   console.log(
-                    `Would generate event type ${properties.event} ` +
+                    `Would generate event type ${property.event} ` +
                       `{ value: ${value}, old: ${old} }`);
                 }
 

@@ -97,7 +97,29 @@ qx.Class.define(
       //   init : 42,
       //   check : "Number",
       //   apply : "_applyRunning"
-      // }
+      // },
+
+      delay :
+      {
+        init : 0,
+        async : true,
+        get : async () =>
+        {
+          return new Promise(
+            (resolve, reject) =>
+            {
+              setTimeout(() => { resolve(true); }, 2000);
+            });
+        },
+        apply : async () =>
+        {
+          return new Promise(
+            (resolve, reject) =>
+            {
+              setTimeout(() => { resolve(true); }, 2000);
+            });
+        }
+      }
     }
   });
 
@@ -169,55 +191,66 @@ qx.Class.define(
   });
 
 
-// Instantiate our superclass object and check member variable access
-let superinstance = new tester.Superclass(false);
-assert("superinstance.num == 23", superinstance.num == 23);
-assert("superinstance.str == 'hello world'",
-       superinstance.str == 'hello world');
+(async () =>
+  {
+    // Instantiate our superclass object and check member variable access
+    let superinstance = new tester.Superclass(false);
+    assert("superinstance.num == 23", superinstance.num == 23);
+    assert("superinstance.str == 'hello world'",
+           superinstance.str == 'hello world');
 
-// get and set property using new, getter/setter syntax
-assert("running initial value === false", superinstance.running === false);
-superinstance.running = true;
-assert("running after assigning === true", superinstance.running === true);
+    // get and set property using new, getter/setter syntax
+    assert("running initial value === false", superinstance.running === false);
+    superinstance.running = true;
+    assert("running after assigning === true", superinstance.running === true);
 
-// set property using traditional function syntax
-superinstance.setRunning(false);
-assert("running after setRunning(false) === false",
-       superinstance.running === false);
-assert("getRunning() returned false", superinstance.getRunning() === false);
+    // set property using traditional function syntax
+    superinstance.setRunning(false);
+    assert("running after setRunning(false) === false",
+           superinstance.running === false);
+    assert("getRunning() returned false", superinstance.getRunning() === false);
 
-// back to getter/setter syntax. The two syntaxes are interchangeable
-superinstance.running = true;
-assert("running after assigning true === true",
-       superinstance.running === true);
+    // back to getter/setter syntax. The two syntaxes are interchangeable
+    superinstance.running = true;
+    assert("running after assigning true === true",
+           superinstance.running === true);
 
-// test check: "Boolean"'s togglePropertyName and isPropertyName functions
-console.log("");
-superinstance.toggleRunning();
-assert("running after toggle === false", superinstance.running === false);
-assert("isRunning() === false", superinstance.isRunning() === false);
+    // test check: "Boolean"'s togglePropertyName and isPropertyName functions
+    console.log("");
+    superinstance.toggleRunning();
+    assert("running after toggle === false", superinstance.running === false);
+    assert("isRunning() === false", superinstance.isRunning() === false);
 
-let subinstance = new tester.Subclass(23, true);
-console.log("");
-assert("staticEntry === 'I am static'",
-       tester.Subclass.staticEntry === 'I am static');
-assert("sub num === 23", subinstance.num === 23);
-assert("sub str === 'hello world'", subinstance.str === 'hello world');
-assert("sub getRunning() === true", subinstance.getRunning() === true);
-subinstance.running = false;
-assert("sub after setting to false, sub getRunning() === false",
-            subinstance.getRunning() === false);
+    let subinstance = new tester.Subclass(23, true);
+    console.log("");
+    assert("staticEntry === 'I am static'",
+           tester.Subclass.staticEntry === 'I am static');
+    assert("sub num === 23", subinstance.num === 23);
+    assert("sub str === 'hello world'", subinstance.str === 'hello world');
+    assert("sub getRunning() === true", subinstance.getRunning() === true);
+    subinstance.running = false;
+    assert("sub after setting to false, sub getRunning() === false",
+                subinstance.getRunning() === false);
+    console.log("setting async delay property; should delay a few seconds");
+    let startTime = new Date();
+    await subinstance.setDelayAsync(0);
+    console.log("returned from delay setter");
+    assert("async setter delays more than 1 second",
+           new Date().getTime() > startTime.getTime() + 1000);
+    console.log("getting async delay property; should delay a few seconds");
+    startTime = new Date();
+    await subinstance.getDelayAsync();
+    console.log("returned from delay getter");
+    assert("async getter delays more than 1 second",
+           new Date().getTime() > startTime.getTime() + 1000);
 
-let arr = new tester.Arr();
-arr.setItem(3, 42);
-assert("arr.getArr() === 'Item 0,Item 1,Item 2,42'",
-       arr.getArr().toString() == 'Item 0,Item 1,Item 2,42');
-arr[3] = 23;
-assert("arr.getArr() === 'Item 0,Item 1,Item 2,23'",
-       arr.getArr().toString() == 'Item 0,Item 1,Item 2,23');
-
-//
-// qx.Class and qx.Property implementation
-//
-
+    let arr = new tester.Arr();
+    arr.setItem(3, 42);
+    assert("arr.getArr() === 'Item 0,Item 1,Item 2,42'",
+           arr.getArr().toString() == 'Item 0,Item 1,Item 2,42');
+    arr[3] = 23;
+    assert("arr[3]=23 yields arr[3] === 23", arr[3] === 23);
+    assert("arr.getArr() === 'Item 0,Item 1,Item 2,23'",
+           arr.getArr().toString() == 'Item 0,Item 1,Item 2,23');
+  })();
 
