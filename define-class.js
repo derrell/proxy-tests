@@ -415,11 +415,11 @@ function _extend(
                   // It does. Call it.
                   if (typeof property.apply == "function")
                   {
-                    property.apply.call(obj, value, old);
+                    property.apply.call(obj, value, old, prop);
                   }
                   else // otherwise it's a string
                   {
-                    obj[property.apply].call(obj, value, old);
+                    obj[property.apply].call(obj, value, old, prop);
                   }
                 }
 
