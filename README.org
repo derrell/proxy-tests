@@ -1,4 +1,4 @@
-This is work in progress towards a reimplementaiton of the qooxdoo
+This is work in progress towards a reimplementation of the qooxdoo
 Class and Property systems.
 
 * Code organization
