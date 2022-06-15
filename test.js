@@ -252,12 +252,39 @@ qx.Class.define(
   {
     extend : tester.Abstract,
 
+    environment :
+    {
+      "tester.greeting" : "hi there"
+    },
+
+    properties :
+    {
+      recentGreeting :
+      {
+        check : "String",
+        init : "uninitialized"
+      }
+    },
+
     members :
     {
-      doSomething : function()
+      getGreeting : function()
       {
-        console.log("do something");
+        this.recentGreeting = qx.core.Environment.get("tester.greeting");
+        return this.getRecentGreeting();
       }
+    },
+
+    defer : function(clazz, members, properties)
+    {
+      console.log("Class keys:");
+      Object.keys(clazz).forEach((key) => console.log(`\t${key}`));
+
+      console.log("Member keys:");
+      Object.keys(members).forEach((key) => console.log(`\t${key}`));
+
+      console.log("Propeties:");
+      console.log(JSON.stringify(properties, null, "  "));
     }
   });
 
@@ -389,10 +416,16 @@ qx.Class.define(
       assert("new tester.Abstract() threw", true);
     }
 
+    let subclassOfAbstract;
     try
     {
-      let subclassOfAbstract = new tester.SubclassOfAbstract();
+      subclassOfAbstract = new tester.SubclassOfAbstract();
       assert("new tester.SubclassOfAbstract() succeeded", true);
+
+      // Test environment settings
+      let greeting = subclassOfAbstract.getGreeting();
+      assert("greeting from environment === 'hi there'",
+             greeting === "hi there");
     }
     catch(e)
     {

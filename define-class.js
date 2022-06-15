@@ -37,9 +37,16 @@ let qx =
 
         Environment :
         {
-          get(name)
+          $$environment : {},
+
+          get(key)
           {
-            return false;       // only used for qx.aspect right now
+            return qx.core.Environment.$$environment[key];
+          },
+
+          add(key, value)
+          {
+            qx.core.Environment.$$environment[key] = value;
           }
         }
       }
@@ -118,6 +125,13 @@ function define(className, config)
         configurable : true,
         enumerable   : true
       });
+  }
+
+  // Process environment
+  let environment = config.environment || {};
+  for (let key in config.environment)
+  {
+    qx.core.Environment.add(key, config.environment[key]);
   }
 
   // Add properties
@@ -360,6 +374,13 @@ function define(className, config)
 
       path = path[component];
     });
+
+  // Now that the class has been defined, call its (optional) defer function
+  if (config.defer)
+  {
+    // Do not allow modification to the property map at this stage.
+    config.defer(clazz, clazz.prototype, Object.assign({}, config.properties));
+  }
 
   return clazz;
 }
