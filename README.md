@@ -28,7 +28,7 @@ The test program is `test.js`.
 - [ ] environment
 - [ ] events
 - [ ] defer
-- [ ] destruct
+- [x] destruct
 
 # Legacy Property features currently implemented
 - [x] check (currently just says what it would do)
