@@ -221,7 +221,8 @@ qx.Class.define(
     construct : function()
     {
       this.base(arguments, true);
-      console.log(`displayname: ${this.constructor.$$displayName}`);
+      console.log(`constructor displayname: ${this.constructor.$$displayName}`);
+      console.log(`instance displayname: ${this.$$displayName}`);
     }
   });
 

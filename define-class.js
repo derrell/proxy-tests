@@ -92,19 +92,21 @@ function define(className, config)
   {
     let             member = config.members[key];
 
-    if (qx.core.Environment.get("qx.aspects") &&
-        typeof member == "function")
+    if (typeof member == "function")
     {
-      member = qx.core.Aspect.wrap(className, member, key);
-
       // Allow easily identifying this method
       qx.Bootstrap.setDisplayName(member, className, key);
-    }
 
-    // Allow base calls
-    if (typeof member == "function" && key in clazz.prototype)
-    {
-      member.base = clazz.prototype[key];
+      if (qx.core.Environment.get("qx.aspects"))
+      {
+        member = qx.core.Aspect.wrap(className, member, key);
+      }
+
+      // Allow base calls
+      if (key in clazz.prototype)
+      {
+        member.base = clazz.prototype[key];
+      }
     }
 
     Object.defineProperty(
