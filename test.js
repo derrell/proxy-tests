@@ -212,6 +212,53 @@ qx.Class.define(
     }
   });
 
+qx.Class.define(
+  "tester.Singleton",
+  {
+    type : "singleton",
+    extend : tester.Superclass,
+
+    construct : function()
+    {
+      this.base(arguments, true);
+      console.log(`displayname: ${this.constructor.$$displayName}`);
+    }
+  });
+
+qx.Class.define(
+  "tester.Abstract",
+  {
+    type : "abstract",
+    extend : tester.Superclass,
+
+    construct : function()
+    {
+      this.base(arguments, true);
+      console.log(`$displayname: ${this.$$displayName}`);
+    },
+
+    members :
+    {
+      doSomething : function()
+      {
+        throw new Error(`${this.$$displayName} is abstract}`);
+      }
+    }
+  });
+
+qx.Class.define(
+  "tester.SubclassOfAbstract",
+  {
+    extend : tester.Abstract,
+
+    members :
+    {
+      doSomething : function()
+      {
+        console.log("do something");
+      }
+    }
+  });
 
 (async () =>
   {
@@ -309,6 +356,47 @@ qx.Class.define(
     //     }
     //   });
     // let subNativeClass = new tester.SubNative();
+
+    // Singleton tests
+    try
+    {
+      let singleton = new tester.Singleton();
+
+      // Fail. Shoould not have gotten here. Should have thrown.
+      assert("new tester.Singleton() threw as expected", false);
+    }
+    catch(e)
+    {
+      // This is the success case. `new tester.Singleton()` should have thrown.
+      assert("new tester.Singleton() threw as expected", true);
+    }
+
+    let singleton = tester.Singleton.getInstance();
+    assert("tester.Singleton.getInstance() succeeded", true);
+
+    // Abstract class tests
+    try
+    {
+      let abstractClass = new tester.AbstractClass();
+
+      // Fail. Shoould not have gotten here. Should have thrown.
+      assert("new tester.Abstract() threw", false);
+    }
+    catch(e)
+    {
+      // This is the success case. `new tester.Abstract()` should have thrown.
+      assert("new tester.Abstract() threw", true);
+    }
+
+    try
+    {
+      let subclassOfAbstract = new tester.SubclassOfAbstract();
+      assert("new tester.SubclassOfAbstract() succeeded", true);
+    }
+    catch(e)
+    {
+      assert("new tester.SubclassOfAbstract() succeeded", false);
+    }
 
     // Keep these delay tests last in the test...
     console.log("setting async delay property; should delay a few seconds");

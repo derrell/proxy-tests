@@ -53,12 +53,13 @@ function define(className, config)
   let             path;
   let             classnameComponents;
 
-  clazz = _extend(
-    className,
-    config.extend || Object,
-    config.construct || function() {},
-    config.properties,
-    config.proxyHandler);
+  clazz = _extend(className, config);
+
+  // Add singleton getInstance()
+  if (config.type === "singleton")
+  {
+    clazz.getInstance = getInstance;
+  }
 
   clazz.classname = className;
   qx.Bootstrap.setDisplayName(clazz, className, "constructor");
@@ -362,13 +363,13 @@ function define(className, config)
 }
 
 
-function _extend(
-  className,
-  superclass,
-  subclass,
-  properties,
-  customProxyHandler)
+function _extend(className, config)
 {
+  const           type = config.type || "class";
+  const           superclass = config.extend || Object;
+  const           subclass = config.construct || function() {};
+  const           properties = config.properties;
+  const           customProxyHandler = config.proxyHandler;
   let             allProperties = superclass.$$properties || {};
 
   // Ensure there are no properties defined that overwrite superclasses'
@@ -417,6 +418,32 @@ function _extend(
         let             proxy;
         let             handler;
         let             obj = Object.create(subclass.prototype);
+
+        // add abstract and singleton checks
+        if (type === "abstract")
+        {
+          if (target.classname === className)
+          {
+            throw new Error(
+              "The class '," +
+                className +
+                "' is abstract! It is not possible to instantiate it."
+            );
+          }
+        }
+
+        if (type === "singleton")
+        {
+          if (! target.$$allowconstruct)
+          {
+            throw new Error(
+              "The class '" +
+                className +
+                "' is a singleton! It is not possible to instantiate it " +
+                "directly. Use the static getInstance() method instead."
+            );
+          }
+        }
 
         handler =
           {
@@ -568,6 +595,43 @@ function base(args, varargs)
       Array.prototype.slice.call(arguments, 1)
     );
   }
+}
+
+/**
+ * Helper method to handle singletons
+ *
+ * @internal
+ * @return {Object} The singleton instance
+ */
+function getInstance()
+{
+  if (this.$$instance === null)
+  {
+    throw new Error(
+      "Singleton instance of " +
+        this +
+        " is requested, but not ready yet. This is most likely due" +
+        " to a recursive call in the constructor path."
+    );
+  }
+
+  if (!this.$$instance)
+  {
+    // Allow calling the constructor
+    this.$$allowconstruct = true;
+
+     // null means "object is being created"; needed for another call
+     // of getInstance() during instantiation
+    this.$$instance = null;
+
+    // Obtain the singleton instance
+    this.$$instance = new this();
+
+    // Disallow, again, calling the constructor
+    delete this.$$allowconstruct;
+  }
+
+  return this.$$instance;
 }
 
 function assert(message, assertionSuccess)
