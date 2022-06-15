@@ -150,6 +150,9 @@ qx.Class.define(
     }
   });
 
+//
+// Simulate qx.data.Array to demonstrate native-like access to array elements
+//
 qx.Class.define(
   "tester.Arr",
   {
