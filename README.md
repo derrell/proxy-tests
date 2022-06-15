@@ -51,13 +51,13 @@ The test program is `test.js`.
   - [ ] mode
   - [ ] themeable
 - [ ] generated methods
-  - [x] getPropertyName()
-  - [x] setPropertyName()
-  - [x] initPropertyName()
-  - [x] isPropertyName() if `check === "Boolean"`
-  - [x] togglePropertyName() if `check === "Boolean"`
-  - [x] getPropertyNameAsync() if `async`
-  - [x] setPropertyNameAsync() if `async` and `apply`
+  - [x] getProperty()
+  - [x] setProperty()
+  - [x] initProperty()
+  - [x] isProperty() if `check === "Boolean"`
+  - [x] toggleProperty() if `check === "Boolean"`
+  - [x] getPropertyAsync() if `async`
+  - [x] setPropertyAsync() if `async` and `apply`
   - [ ] resetProperty()
   - [ ] setThemedProperty()
   - [ ] resetThemedProperty()
@@ -75,7 +75,7 @@ The test program is `test.js`.
 - [ ] integration with references
   - [x] initFunction (in lieu of init). Added to a property
     definition, this is a function that will be called with no
-    arguments, when `initPropertyName()` is called. The function
+    arguments, when `initProperty()` is called. The function
     should return the initial value. This allows a unique initial
     value, even if it's a reference type, per object instance.
   - [ ] hard
