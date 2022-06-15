@@ -1,12 +1,4 @@
-const { define, assert } = require("./define-class");
-
-let qx =
-    {
-      Class :
-      {
-        define : define
-      }
-    };
+const { qx, assert } = require("./define-class");
 
 qx.Class.define(
   "tester.Superclass",

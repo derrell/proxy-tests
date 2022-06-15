@@ -1,3 +1,50 @@
+let qx =
+    {
+      Bootstrap :
+      {
+        setDisplayName(f, classname, name)
+        {
+          if (name)
+          {
+            f.$$displayName = `${classname}.${name}()`;
+          }
+          else
+          {
+            f.$$displayName = `${classname}()`;
+          }
+        },
+
+        getDisplayName(f)
+        {
+          return f.$$displayName || "<non-qooxdoo>";
+        }
+      },
+
+      Class :
+      {
+        define : define
+      },
+
+      core :
+      {
+        Aspect :
+        {
+          wrap(f)
+          {
+            return f;
+          }
+        },
+
+        Environment :
+        {
+          get(name)
+          {
+            return false;       // only used for qx.aspect right now
+          }
+        }
+      }
+    };
+
 function define(className, config)
 {
   let             clazz;
@@ -12,6 +59,18 @@ function define(className, config)
     config.construct || function() {},
     config.properties,
     config.proxyHandler);
+
+  clazz.classname = className;
+  qx.Bootstrap.setDisplayName(clazz, className, "constructor");
+
+  // Attach toString
+  if (! clazz.hasOwnProperty("toString"))
+  {
+    clazz.toString = function()
+    {
+      return `[Class ${this.classname}]`;
+    };
+  }
 
   // Add statics
   for (let key in (config.statics || []))
@@ -32,12 +91,17 @@ function define(className, config)
   {
     let             member = config.members[key];
 
-    // Allow easily identifying this method
-    member.displayName = `${className}.${key}()`;
+    if (qx.core.Environment.get("qx.aspects") &&
+        typeof member == "function")
+    {
+      member = qx.core.Aspect.wrap(className, member, key);
+
+      // Allow easily identifying this method
+      qx.Bootstrap.setDisplayName(member, className, key);
+    }
 
     // Allow base calls
-    if (typeof member == "function" &&
-        key in clazz.prototype)
+    if (typeof member == "function" && key in clazz.prototype)
     {
       member.base = clazz.prototype[key];
     }
@@ -250,6 +314,20 @@ function define(className, config)
     }
   }
 
+  // Store destruct onto class
+  if (config.destruct)
+  {
+    let             destruct;
+
+    if (qx.core.Environment.get("qx.aspects"))
+    {
+      destruct = qx.core.Aspect.wrap(className, destruct, "destructor");
+    }
+
+    clazz.$$destructor = destruct;
+    qx.Bootstrap.setDisplayName(destruct, className, "destruct");
+  }
+
   // Create the specified namespace
   path = globalThis;
   classnameComponents = className.split(".");
@@ -291,7 +369,7 @@ function _extend(
   properties,
   customProxyHandler)
 {
-  let             allProperties = superclass.$properties || {};
+  let             allProperties = superclass.$$properties || {};
 
   // Ensure there are no properties defined that overwrite superclasses'
   // properties, unless "refine : true" is specified
@@ -308,7 +386,7 @@ function _extend(
   }
 
   // Allow easily identifying this class
-  subclass.displayName = className + "()";
+  qx.Bootstrap.setDisplayName(subclass, className);
 
   // Provide access to the superclass for base calls
   subclass.base = superclass;
@@ -322,7 +400,7 @@ function _extend(
   allProperties = Object.assign({}, allProperties, properties || {});
   Object.defineProperty(
     subclass,
-    "$properties",
+    "$$properties",
     {
       value        : allProperties,
       writable     : false,
@@ -344,7 +422,7 @@ function _extend(
           {
             get : function(obj, prop)
             {
-              let             property = subclass.$properties[prop];
+              let             property = subclass.$$properties[prop];
               const           storage =
                 property && property.storage
                     ? property.storage
@@ -372,7 +450,7 @@ function _extend(
             {
               let             origValue = value;
               let             old = Reflect.get(obj, prop);
-              let             property = subclass.$properties[prop];
+              let             property = subclass.$$properties[prop];
               const           storage =
                 property && property.storage
                     ? property.storage
@@ -476,7 +554,7 @@ function base(args, varargs)
   {
     throw new Error(
       "Cannot call super class. Method is not derived: " +
-        args.callee.displayName);
+        qx.Bootstrap.getDisplayName(args.callee));
   }
 
   if (arguments.length === 1)
@@ -500,4 +578,4 @@ function assert(message, assertionSuccess)
       message);
 }
 
-module.exports = { define, assert };
+module.exports = { qx, assert };
