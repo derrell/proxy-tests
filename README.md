@@ -73,7 +73,7 @@ The test program is `test.js`.
 - [ ] immutability and mutation detection
 - [ ] fast property definition
 - [ ] integration with references
-  - [x] initFunction (in lieu of `init`). Added to a property
+  - [x] `initFunction` (in lieu of `init`). Added to a property
     definition, this is a function that will be called with no
     arguments, when `initProperty()` is called. The function
     should return the initial value. This allows a unique initial
