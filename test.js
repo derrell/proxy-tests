@@ -294,9 +294,64 @@ qx.Class.define(
     }
   });
 
+try
+{
+  qx.Class.define(
+    "tester.StaticClass",
+    {
+      type : "static",
+      extend : tester.Superclass,
+    });
+
+  // This should have failed
+  assert("'extend' in 'static' class throws error", false);
+}
+catch(e)
+{
+  console.log(e.toString());
+  assert("'extend' in 'static' class throws error", true); // success
+}
+
+try
+{
+  qx.Class.define(
+    "tester.StaticClass",
+    {
+      type : "static",
+      members :
+      {
+        int : 23
+      }
+    });
+
+  // This should have failed
+  assert("'members' in 'static' class throws error", false);
+}
+catch(e)
+{
+  console.log(e.toString());
+  assert("'members' in 'static' class throws error", true); // success
+}
+
+qx.Class.define(
+  "tester.StaticClass",
+  {
+    statics :
+    {
+      success : "It worked!"
+    }
+  });
+
+// This should succeed, with assumed type: "static"
+assert("missing 'type' without 'extend' assumes 'static'", true);
+
 (async () =>
   {
-    // Instantiate our superclass object and check member variable access
+    // validate toString() of class definition
+    assert("tester.Superclass.toString() yields '[Class tester.Superclass]'",
+           tester.Superclass.toString() === "[Class tester.Superclass]");
+
+    // instantiate our superclass object and check member variable access
     let superinstance = new tester.Superclass(false);
     assert("superinstance.num == 23", superinstance.num == 23);
     assert("superinstance.str == 'hello world'",
@@ -436,13 +491,29 @@ qx.Class.define(
       // Ensure events got added
       assert("events list is created correctly",
              JSON.stringify(subclassOfAbstract.constructor.$$events) ===
-             '{"myNormalEvent":"qx.event.type.Event"' +
-             ',"myDataEvent":"qx.event.type.Data"}');
+             '{' +
+             '"changeRecentGreeting":"qx.event.type.Data",' +
+             '"myNormalEvent":"qx.event.type.Event",' +
+             '"myDataEvent":"qx.event.type.Data"' +
+             '}');
     }
     catch(e)
     {
       assert("new tester.SubclassOfAbstract() succeeded", false);
     }
+
+    try
+    {
+      let staticClass = new tester.StaticClass();
+      assert("new tester.StaticClass() failed as expected", false);
+    }
+    catch(e)
+    {
+      assert("new tester.StaticClass() failed as expected", true);
+    }
+
+    assert("tester.StaticClass.success === 'It worked!'",
+           tester.StaticClass.success === "It worked!");
 
     // Keep these delay tests last in the test...
     console.log("setting async delay property; should delay a few seconds");

@@ -2,6 +2,34 @@ let qx =
     {
       Bootstrap :
       {
+        /**
+         * Mapping from JavaScript string representation of objects to names
+         * @internal
+         * @type {Map}
+         */
+        __classToTypeMap: {
+          "[object String]": "String",
+          "[object Array]": "Array",
+          "[object Object]": "Object",
+          "[object RegExp]": "RegExp",
+          "[object Number]": "Number",
+          "[object Boolean]": "Boolean",
+          "[object Date]": "Date",
+          "[object Function]": "Function",
+          "[object AsyncFunction]": "Function",
+          "[object Error]": "Error",
+          "[object Blob]": "Blob",
+          "[object ArrayBuffer]": "ArrayBuffer",
+          "[object FormData]": "FormData"
+        },
+
+        getClass : getClass,
+
+        getDisplayName(f)
+        {
+          return f.$$displayName || "<non-qooxdoo>";
+        },
+
         setDisplayName(f, classname, name)
         {
           if (name)
@@ -12,11 +40,6 @@ let qx =
           {
             f.$$displayName = `${classname}()`;
           }
-        },
-
-        getDisplayName(f)
-        {
-          return f.$$displayName || "<non-qooxdoo>";
         }
       },
 
@@ -37,7 +60,10 @@ let qx =
 
         Environment :
         {
-          $$environment : {},
+          $$environment :
+          {
+            "qx.debug" : true
+          },
 
           get(key)
           {
@@ -54,13 +80,110 @@ let qx =
 
 function define(className, config)
 {
+  let             allowedKeys;
   let             clazz;
   let             proxy;
   let             handler;
   let             path;
   let             classnameComponents;
 
-  clazz = _extend(className, config);
+  if (! config.extend)
+  {
+    if (qx.core.Environment.get("qx.debug"))
+    {
+      if (config.type && config.type != "static")
+      {
+        throw new Error(
+          `${className}: ` +
+            `No 'extend' key, but 'type' is not 'static' ` +
+            `(found ${config.type})`);
+      }
+      else if (! config.type)
+      {
+        console.log(`${className}: No 'extend' key; assuming type: 'static'`);
+      }
+    }
+
+    config.type = "static";
+  }
+
+  if (qx.core.Environment.get("qx.debug"))
+  {
+    if (config.type == "static")
+    {
+      allowedKeys =
+        {
+          "@": "object",
+          type: "string",         // String
+          include: "object",      // Mixin[]
+          statics: "object",      // Map
+          environment: "object",  // Map
+          events: "object",       // Map
+          defer: "function"       // Function
+        };
+    }
+    else
+    {
+      allowedKeys =
+        {
+          "@": "object",
+          "@construct": "object",
+          "@destruct": "object",
+          type: "string",         // String
+          extend: "function",     // Function
+          implement: "object",    // Interface[]
+          include: "object",      // Mixin[]
+          construct: "function",  // Function
+          statics: "object",      // Map
+          properties: "object",   // Map
+          members: "object",      // Map
+          environment: "object",  // Map
+          events: "object",       // Map
+          defer: "function",      // Function
+          destruct: "function",    // Function
+          proxyHandler: "object"   // Map
+        };
+    }
+
+    Object.keys(config).forEach(
+      (key) =>
+      {
+        // Ensure this key is allowed
+        if (! (key in allowedKeys))
+        {
+          if (config.type == "static")
+          {
+            throw new Error(
+              `${className}: ` +
+                `disallowed key in static class configuration: ${key}`);
+          }
+          else
+          {
+            throw new Error(
+              `${className}: ` +
+                `unrecognized key in class configuration: ${key}`);
+          }
+        }
+
+        // Ensure its value is of the correct type
+        if (typeof config[key] != allowedKeys[key])
+        {
+          throw new Error(
+            `${className}: ` +
+              `typeof value for key ${key} must be ${allowedKeys[key]}; ` +
+              `found ${typeof config[key]}`);
+        }
+      });
+  }
+
+  if (config.type == "static")
+  {
+    clazz = config.statics || {};
+  }
+  else
+  {
+    clazz = _extend(className, config);
+  }
 
   // Add singleton getInstance()
   if (config.type === "singleton")
@@ -76,12 +199,12 @@ function define(className, config)
   {
     clazz.toString = function()
     {
-      return `[Class ${this.classname}]`;
+      return `[Class ${clazz.classname}]`;
     };
   }
 
   // Add statics
-  for (let key in (config.statics || []))
+  for (let key in (config.statics || {}))
   {
     Object.defineProperty(
       clazz,
@@ -95,7 +218,7 @@ function define(className, config)
   }
 
   // Add members
-  for (let key in (config.members || []))
+  for (let key in (config.members || {}))
   {
     let             member = config.members[key];
 
@@ -179,94 +302,90 @@ function define(className, config)
         });
     }
 
-    // Unless told not to, create the legacy methods
-    if (! property.noLegacyMethods)
+    // Create the legacy property getter, getPropertyName
+    Object.defineProperty(
+      clazz.prototype,
+      `get${propertyFirstUp}`,
+      {
+        value        : function()
+        {
+          return this[key];
+        },
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
+    // Create the legacy property setter, setPropertyName.
+    Object.defineProperty(
+      clazz.prototype,
+      `set${propertyFirstUp}`,
+      {
+        value        : function(value)
+        {
+          this[key] = value;
+        },
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
+    // If there's an init or initFunction handler, ...
+    if (typeof property.init != "undefined" ||
+        typeof property.initFunction == "function")
     {
-      // Create the legacy property getter, getPropertyName
+      // ... then create initPropertyName
       Object.defineProperty(
         clazz.prototype,
-        `get${propertyFirstUp}`,
+        `init${propertyFirstUp}`,
         {
           value        : function()
           {
-            return this[key];
+            if (property.initFunction)
+            {
+              storage.set.call(this, key, property.initFunction());
+            }
+            else if (property.init)
+            {
+              storage.set.call(this, key, property.init);
+            }
           },
           writable     : false,
           configurable : false,
           enumerable   : false
         });
+    }
 
-      // Create the legacy property setter, setPropertyName.
+    // If this is a boolean, as indicated by check : "Boolean" ...
+    if (typeof property.check == "string" &&
+        property.check == "Boolean")
+    {
+      // ... then create isPropertyName and togglePropertyName
       Object.defineProperty(
         clazz.prototype,
-        `set${propertyFirstUp}`,
+        `is${propertyFirstUp}`,
         {
-          value        : function(value)
+          value        : function()
           {
-            this[key] = value;
+            return !! this[key];
           },
           writable     : false,
           configurable : false,
           enumerable   : false
         });
 
-      // If there's an init or initFunction handler, ...
-      if (typeof property.init != "undefined" ||
-          typeof property.initFunction == "function")
-      {
-        // ... then create initPropertyName
-        Object.defineProperty(
-          clazz.prototype,
-          `init${propertyFirstUp}`,
+      Object.defineProperty(
+        clazz.prototype,
+        `toggle${propertyFirstUp}`,
+        {
+          value        : function()
           {
-            value        : function()
-            {
-              if (property.initFunction)
-              {
-                storage.set.call(this, key, property.initFunction());
-              }
-              else if (property.init)
-              {
-                storage.set.call(this, key, property.init);
-              }
-            },
-            writable     : false,
-            configurable : false,
-            enumerable   : false
-          });
-      }
-
-      // If this is a boolean, as indicated by check : "Boolean" ...
-      if (typeof property.check == "string" &&
-          property.check == "Boolean")
-      {
-        // ... then create isPropertyName and togglePropertyName
-        Object.defineProperty(
-          clazz.prototype,
-          `is${propertyFirstUp}`,
-          {
-            value        : function()
-            {
-              return !! this[key];
-            },
-            writable     : false,
-            configurable : false,
-            enumerable   : false
-          });
-
-        Object.defineProperty(
-          clazz.prototype,
-          `toggle${propertyFirstUp}`,
-          {
-            value        : function()
-            {
-              this[key] = ! this[key];
-            },
-            writable     : false,
-            configurable : false,
-            enumerable   : false
-          });
-      }
+            this[key] = ! this[key];
+          },
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
     }
 
     if (property.async && property.get)
@@ -329,6 +448,15 @@ function define(className, config)
           enumerable   : false
         });
     }
+
+    // Add the event name for this property to the list of events
+    // fired by this class
+    let eventName = `change${propertyFirstUp}`;
+    let events =
+        {
+          [eventName] : "qx.event.type.Data"
+        };
+    __addEvents(clazz, events, true);
   }
 
   // Add events. These are used for the API Viewer to show what events
@@ -424,6 +552,9 @@ function _extend(className, config)
 
   // Provide access to the superclass for base calls
   subclass.base = superclass;
+
+  // Some internals require that `superclass` be defined too
+  subclass.superclass = superclass;
 
   // Create the subclass' prototype as a copy of the superclass' prototype
   subclass.prototype = Object.create(superclass.prototype);
@@ -731,6 +862,32 @@ function getInstance()
   }
 
   return this.$$instance;
+}
+
+/**
+ * Get the internal class of the value. See
+ * http://perfectionkills.com/instanceof-considered-harmful-or-how-to-write-a-robust-isarray/
+ * for details.
+ *
+ * @param value {var} value to get the class for
+ * @return {String} the internal class of the value
+ */
+function getClass(value)
+{
+  // The typeof null and undefined is "object" under IE8
+  if (value === undefined)
+  {
+    return "Undefined";
+  }
+  else if (value === null)
+  {
+    return "Null";
+  }
+
+  let classString = Object.prototype.toString.call(value);
+  return (
+    qx.Bootstrap.__classToTypeMap[classString] || classString.slice(8, -1)
+  );
 }
 
 function assert(message, assertionSuccess)
