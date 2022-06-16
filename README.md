@@ -26,7 +26,7 @@ The test program is `test.js`.
 - [x] properties
 - [x] members
 - [x] environment
-- [ ] events
+- [x] events
 - [x] defer
 - [x] destruct
 - [x] this.constructor
