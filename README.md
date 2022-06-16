@@ -16,7 +16,7 @@ The test program is `test.js`.
 # Legacy Class features currently implemented
 - [ ] type
   - [x] abstract
-  - [ ] static
+  - [x] static
   - [x] singleton
 - [x] extend
 - [ ] implement [Interfaces]
