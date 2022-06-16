@@ -266,6 +266,12 @@ qx.Class.define(
       }
     },
 
+    events :
+    {
+      myNormalEvent : "qx.event.type.Event",
+      myDataEvent : "qx.event.type.Data"
+    },
+
     members :
     {
       getGreeting : function()
@@ -426,6 +432,12 @@ qx.Class.define(
       let greeting = subclassOfAbstract.getGreeting();
       assert("greeting from environment === 'hi there'",
              greeting === "hi there");
+
+      // Ensure events got added
+      assert("events list is created correctly",
+             JSON.stringify(subclassOfAbstract.constructor.$$events) ===
+             '{"myNormalEvent":"qx.event.type.Event"' +
+             ',"myDataEvent":"qx.event.type.Data"}');
     }
     catch(e)
     {
