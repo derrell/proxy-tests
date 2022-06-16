@@ -14,7 +14,7 @@ The test program is `test.js`.
 - node test.js
 
 # Legacy Class features currently implemented
-- [ ] type
+- [x] type
   - [x] abstract
   - [x] static
   - [x] singleton
