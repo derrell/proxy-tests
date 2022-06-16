@@ -30,7 +30,7 @@ The test program is `test.js`.
 - [x] defer
 - [x] destruct
 - [x] this.constructor
-- [ ] annotations
+- [x] annotations
 
 # Legacy Property features currently implemented
 - [x] check (currently just says what it would do)

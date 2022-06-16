@@ -345,6 +345,43 @@ qx.Class.define(
 // This should succeed, with assumed type: "static"
 assert("missing 'type' without 'extend' assumes 'static'", true);
 
+// Test annotations
+qx.Class.define(
+  "tester.Annotations",
+ {
+   extend : Object,
+
+   "@construct" : ["construct-anno"],
+   "@destruct" : ["destruct-anno"],
+
+   properties :
+   {
+     alpha :
+     {
+       init : null,
+       nullable : true,
+       "@" : ["property-alpha-anno"]
+     }
+   },
+
+   members:
+   {
+     "@methodA" : ["method-a-anno"],
+     methodA()
+     {
+     }
+   },
+
+   statics:
+   {
+     "@staticA" : ["static-a-anno"],
+     staticA()
+     {
+       return true;
+     }
+   }
+ });
+
 (async () =>
   {
     // validate toString() of class definition
@@ -515,7 +552,21 @@ assert("missing 'type' without 'extend' assumes 'static'", true);
     assert("tester.StaticClass.success === 'It worked!'",
            tester.StaticClass.success === "It worked!");
 
+
+    let anno = new tester.Annotations();
+    assert("annotations created correctly",
+           JSON.stringify(anno.constructor.$$annotations) ===
+           '{' +
+           '"@construct":["construct-anno"],' +
+           '"@destruct":["destruct-anno"],' +
+           '"statics":{"staticA":["static-a-anno"]},' +
+           '"members":{"methodA":["method-a-anno"]},' +
+           '"properties":{"alpha":["property-alpha-anno"]}' +
+           '}');
+
+    //
     // Keep these delay tests last in the test...
+    //
     console.log("setting async delay property; should delay a few seconds");
     let startTime = new Date();
     await subinstance.setDelayAsync(0);

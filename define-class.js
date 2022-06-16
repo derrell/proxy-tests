@@ -176,14 +176,14 @@ function define(className, config)
       });
   }
 
-  if (config.type == "static")
-  {
-    clazz = config.statics || {};
-  }
-  else
-  {
-    clazz = _extend(className, config);
-  }
+  clazz = _extend(className, config);
+
+  // Initialise class and constructor/destructor annotations
+  ["@", "@construct", "@destruct"].forEach(
+    (id) =>
+    {
+      __attachAnno(clazz, id, null, config[id]);
+    });
 
   // Add singleton getInstance()
   if (config.type === "singleton")
@@ -206,21 +206,79 @@ function define(className, config)
   // Add statics
   for (let key in (config.statics || {}))
   {
+    let             staticFunc;
+
+    if (qx.core.Environment.get("qx.debug"))
+    {
+      if (key.charAt(0) === "@")
+      {
+        if (config.statics[key.substring(1)] === undefined)
+        {
+          throw new Error(
+            'Annonation for static "' +
+              key.substring(1) +
+              '" of Class "' +
+              clazz.classname +
+              '" does not exist!');
+        }
+
+        if (key.charAt(1) === "_" && key.charAt(2) === "_")
+        {
+          throw new Error(
+            'Cannot annotate private static "' +
+              key.substring(1) +
+              '" of Class "' +
+              clazz.classname);
+        }
+      }
+    }
+
+    // Do not add annotations as class properties
+    if (key.charAt(0) === "@")
+    {
+      continue;
+    }
+
+    staticFunc = config.statics[key];
+    if (qx.core.Environment.get("qx.aspects"))
+    {
+      staticFunc =
+        qx.core.Aspect.wrap(className, staticFunc, "static");
+    }
+
+    // Add this static as a class property
     Object.defineProperty(
       clazz,
       key,
       {
-        value        : config.statics[key],
+        value        : staticFunc,
         writable     : true,
         configurable : true,
         enumerable   : true
       });
+
+    // Attach annotations
+    __attachAnno(clazz, "statics", key, config.statics["@" + key]);
   }
 
   // Add members
   for (let key in (config.members || {}))
   {
     let             member = config.members[key];
+
+    // Annotations are not members
+    if (key.charAt(0) === "@")
+    {
+      let annoKey = key.substring(1);
+      if (member[annoKey] === undefined)
+      {
+        // An annotation for a non-existent member.
+        // SHOULD THIS BE ALLOWED?
+        __attachAnno(clazz, "members", annoKey, member[key]);
+      }
+
+      continue;
+    }
 
     if (typeof member == "function")
     {
@@ -248,6 +306,9 @@ function define(className, config)
         configurable : true,
         enumerable   : true
       });
+
+    // Attach annotations
+    __attachAnno(clazz, "members", key, config.members["@" + key]);
   }
 
   // Process environment
@@ -457,6 +518,9 @@ function define(className, config)
           [eventName] : "qx.event.type.Data"
         };
     __addEvents(clazz, events, true);
+
+    // Add annotations
+    __attachAnno(clazz, "properties", key, property["@"]);
   }
 
   // Add events. These are used for the API Viewer to show what events
@@ -528,7 +592,17 @@ function _extend(className, config)
 {
   const           type = config.type || "class";
   const           superclass = config.extend || Object;
-  const           subclass = config.construct || function() {};
+  const           subclass =
+        (config.construct ||
+         (config.type == "static"
+          ? function()
+            {
+              throw new Error(
+                `${className}: can not instantiate a static class`);
+            }
+          : function()
+            {
+            }));
   const           properties = config.properties;
   const           customProxyHandler = config.proxyHandler;
   let             allProperties = superclass.$$properties || {};
@@ -802,6 +876,46 @@ function __addEvents(clazz, events, patch) {
   else
   {
     clazz.$$events = events;
+  }
+}
+
+/**
+ * Attaches an annotation to a class
+ *
+ * @param clazz {Map} Static methods or fields
+ * @param group {String} Group name
+ * @param key {String} Name of the annotated item
+ * @param anno {Object} Annotation object
+ */
+function __attachAnno(clazz, group, key, anno) {
+  // If there's no annotation, we have nothing to do
+  if (anno === undefined)
+  {
+    return;
+  }
+
+  if (clazz.$$annotations === undefined)
+  {
+    clazz.$$annotations = {};
+    clazz.$$annotations[group] = {};
+  }
+  else if (clazz.$$annotations[group] === undefined)
+  {
+    clazz.$$annotations[group] = {};
+  }
+
+  if (! Array.isArray(anno))
+  {
+    anno = [anno];
+  }
+
+  if (key)
+  {
+    clazz.$$annotations[group][key] = anno;
+  }
+  else
+  {
+    clazz.$$annotations[group] = anno;
   }
 }
 
