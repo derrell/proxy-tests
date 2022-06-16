@@ -606,18 +606,25 @@ function _extend(className, config)
   const           properties = config.properties;
   const           customProxyHandler = config.proxyHandler;
   let             allProperties = superclass.$$properties || {};
+  let             initFunctions = [];
 
-  // Ensure there are no properties defined that overwrite superclasses'
-  // properties, unless "refine : true" is specified
-  //
+  // Ensure there are no properties defined that overwrite
+  // superclasses' properties, unless "refine : true" is specified.
   // For now, we allow a property to be entirely overwritten if refine: true
-  // is specified
+  // is specified.
   for (let property in properties)
   {
     if (property in allProperties && ! properties[property].refine)
     {
       throw new Error(
         `Overwriting property "${property}" without "refine: true"`);
+    }
+
+    // Does this property have an initFunction?
+    if (properties[property].initFunction)
+    {
+      // Yup. Keep track of it.
+      initFunctions.push(property);
     }
   }
 
@@ -642,6 +649,17 @@ function _extend(className, config)
     "$$properties",
     {
       value        : allProperties,
+      writable     : false,
+      configurable : false,
+      enumerable   : false
+    });
+
+  // Save any init functions that need to be called upon instantiation
+  Object.defineProperty(
+    subclass,
+    "$$initFunctions",
+    {
+      value        : initFunctions,
       writable     : false,
       configurable : false,
       enumerable   : false
@@ -798,6 +816,16 @@ function _extend(className, config)
 
         proxy = new Proxy(obj, handler);
 
+        // Call any initFunctions defined for properties of this class
+        target.$$initFunctions.forEach(
+          (prop) =>
+          {
+            let       propertyFirstUp= prop[0].toUpperCase() + prop.substr(1);
+
+            // Initialize this property
+            obj[`init${propertyFirstUp}`]();
+          });
+
         this.apply(target, proxy, args);
 
         return proxy;
@@ -805,7 +833,7 @@ function _extend(className, config)
       
       apply : function(target, _this, args)
       {
-        // superclass.apply(_this, args); // auto-run superclass constructor
+        // Call the constructor
         subclass.apply(_this, args);
       }
     });

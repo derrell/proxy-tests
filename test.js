@@ -155,23 +155,11 @@ qx.Class.define(
     {
       get : function(target, prop)
       {
-        // Ensure array store exists
-        if (! target.arr)
-        {
-          target.initArr();
-        }
-
         return target.getItem(prop);
       },
 
       set : function(target, prop, value)
       {
-        // Ensure array store exists
-        if (! target.arr)
-        {
-          target.initArr();
-        }
-
         target.setItem(prop, value);
       }
     },
