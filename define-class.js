@@ -827,6 +827,20 @@ function _extend(className, config)
                     `Would be checking ${value} against ${property.check}`);
                 }
 
+                // Does it have a validation function?
+                if (property.validate)
+                {
+                  // It does. Call it. It throws an error on validation failure
+                  if (typeof property.validate == "function")
+                  {
+                    value = property.validate.call(obj, value);
+                  }
+                  else // otherwise it's a string
+                  {
+                    value = obj[property.validate].call(obj, value);
+                  }
+                }
+
                 // Does it a synchronous method with an apply method?
                 // (Async properties' apply method is called directly from
                 // setPropertyNameAsync() )

@@ -42,6 +42,19 @@ qx.Class.define(
         init : 10,
         check : "Number",
         nullable : false
+      },
+
+      positive :
+      {
+        init : 1,
+        check : "Number",
+        validate : function(value)
+        {
+          if (value <= 0)
+          {
+            throw new Error("value must be greater than 0");
+          }
+        }
       }
     },
 
@@ -585,6 +598,27 @@ qx.Class.define(
     catch(e)
     {
       assert("non-nullable property can not be set to null", true);
+    }
+
+    // Test validate
+    try
+    {
+      superinstance.positive = 1;
+      assert("validated property can be set to legal value", true);
+    }
+    catch(e)
+    {
+      assert("validated property can be set to legal value", false);
+    }
+
+    try
+    {
+      superinstance.positive = -1;
+      assert("validated property can not be set to illegal value", false);
+    }
+    catch(e)
+    {
+      assert("validated property can not be set to illegal value", true);
     }
 
     //
