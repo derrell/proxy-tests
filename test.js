@@ -613,7 +613,7 @@ qx.Class.define(
 
     try
     {
-      superinstance.positive = -1;
+      superinstance.setPositive(-1);
       assert("validated property can not be set to illegal value", false);
     }
     catch(e)
