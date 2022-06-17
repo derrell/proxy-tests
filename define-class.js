@@ -78,6 +78,51 @@ let qx =
       }
     };
 
+/**
+ * Supported keys for property definitions
+ *
+ * @internal
+ */
+let stringOrFunction = [ "string", "function" ];
+let $$allowedKeys =
+    {
+      "@": null,                  // Anything
+      name: "string",             // String
+      dereference: "boolean",     // Boolean
+      inheritable: "boolean",     // Boolean
+      nullable: "boolean",        // Boolean
+      themeable: "boolean",       // Boolean
+      refine: "boolean",          // Boolean
+      init: null,                 // var
+      apply: stringOrFunction,    // String, Function
+      event: "string",            // String
+      check: null,                // Array, String, Function
+      transform: null,            // String, Function
+      async: "boolean",           // Boolean
+      deferredInit: "boolean",    // Boolean
+      validate: stringOrFunction, // String, Function
+      isEqual: stringOrFunction,  // String, Function
+
+      // Not in original set of allowed keys:
+      get: stringOrFunction,      // String, Function
+      initFunction: "function",   // Function
+      storage: "object"           // Map
+    };
+
+/**
+ * Supported keys for property group definitions
+ *
+ * @internal
+ */
+let $$allowedGroupKeys =
+    {
+      "@": null,                  // Anything
+      name: "string",             // String
+      group: "object",            // Array
+      mode: "string",             // String
+      themeable: "boolean"        // Boolean
+    };
+
 function define(className, config)
 {
   let             allowedKeys;
@@ -86,6 +131,11 @@ function define(className, config)
   let             handler;
   let             path;
   let             classnameComponents;
+
+  if (qx.core.Environment.get("qx.debug"))
+  {
+    __validatePropertyDefinitions(className, config);
+  }
 
   if (! config.extend)
   {
@@ -748,6 +798,14 @@ function _extend(className, config)
               // Is this a property?
               if (property)
               {
+                // Ensure they're not setting null to a non-nullable property
+                if (! property.nullable && value === null)
+                {
+                  throw new Error(
+                    `${className}: ` +
+                      `attempt to set non-nullable property ${prop} to null`);
+                }
+
                 // Yup. Does it have a transform method?
                 if (property.transform)
                 {
@@ -840,6 +898,91 @@ function _extend(className, config)
     });
 
   return subclass.prototype.constructor;
+}
+
+function base(args, varargs)
+{
+  if (typeof args.callee.base != "function")
+  {
+    throw new Error(
+      "Cannot call super class. Method is not derived: " +
+        qx.Bootstrap.getDisplayName(args.callee));
+  }
+
+  if (arguments.length === 1)
+  {
+    return args.callee.base.call(this);
+  }
+  else
+  {
+    return args.callee.base.apply(
+      this,
+      Array.prototype.slice.call(arguments, 1)
+    );
+  }
+}
+
+/**
+ * Helper method to handle singletons
+ *
+ * @internal
+ * @return {Object} The singleton instance
+ */
+function getInstance()
+{
+  if (this.$$instance === null)
+  {
+    throw new Error(
+      "Singleton instance of " +
+        this +
+        " is requested, but not ready yet. This is most likely due" +
+        " to a recursive call in the constructor path."
+    );
+  }
+
+  if (!this.$$instance)
+  {
+    // Allow calling the constructor
+    this.$$allowconstruct = true;
+
+     // null means "object is being created"; needed for another call
+     // of getInstance() during instantiation
+    this.$$instance = null;
+
+    // Obtain the singleton instance
+    this.$$instance = new this();
+
+    // Disallow, again, calling the constructor
+    delete this.$$allowconstruct;
+  }
+
+  return this.$$instance;
+}
+
+/**
+ * Get the internal class of the value. See
+ * http://perfectionkills.com/instanceof-considered-harmful-or-how-to-write-a-robust-isarray/
+ * for details.
+ *
+ * @param value {var} value to get the class for
+ * @return {String} the internal class of the value
+ */
+function getClass(value)
+{
+  // The typeof null and undefined is "object" under IE8
+  if (value === undefined)
+  {
+    return "Undefined";
+  }
+  else if (value === null)
+  {
+    return "Null";
+  }
+
+  let classString = Object.prototype.toString.call(value);
+  return (
+    qx.Bootstrap.__classToTypeMap[classString] || classString.slice(8, -1)
+  );
 }
 
 /**
@@ -948,90 +1091,58 @@ function __attachAnno(clazz, group, key, anno) {
   }
 }
 
-function base(args, varargs)
+function __validatePropertyDefinitions(className, config)
 {
-  if (typeof args.callee.base != "function")
-  {
-    throw new Error(
-      "Cannot call super class. Method is not derived: " +
-        qx.Bootstrap.getDisplayName(args.callee));
-  }
+  let             allowedKeys;
+  let             properties = config.properties || {};
 
-  if (arguments.length === 1)
+  for (let prop in properties)
   {
-    return args.callee.base.call(this);
-  }
-  else
-  {
-    return args.callee.base.apply(
-      this,
-      Array.prototype.slice.call(arguments, 1)
-    );
+    let             property = properties[prop];
+
+    // Set allowed keys based on whether this is a grouped property or not
+    allowedKeys = property.group ? $$allowedGroupKeys : $$allowedKeys;
+
+    // Ensure only allowed keys were provided
+    Object.keys(property).forEach(
+      (key) =>
+      {
+        let             allowed = allowedKeys[key];
+
+        if (! (key in allowedKeys))
+        {
+          throw new Error(
+            `${className}: ` +
+              (property.group ? "group " : "") +
+              `property '${prop}' defined with unrecognized key '${key}'`);
+        }
+
+        if (allowed !== null)
+        {
+          // Convert non-array 'allowed' values to an array
+          if (! Array.isArray(allowed))
+          {
+            allowed = [ allowed ];
+          }
+
+          if (! allowed.includes(typeof property[key]))
+          {
+            throw new Error(
+              `${className}: ` +
+                (property.group ? "group " : "") +
+                `property '${prop}' defined with wrong value type ` +
+                `for key '${key}'`);
+          }
+        }
+      });
   }
 }
 
-/**
- * Helper method to handle singletons
- *
- * @internal
- * @return {Object} The singleton instance
- */
-function getInstance()
-{
-  if (this.$$instance === null)
-  {
-    throw new Error(
-      "Singleton instance of " +
-        this +
-        " is requested, but not ready yet. This is most likely due" +
-        " to a recursive call in the constructor path."
-    );
-  }
 
-  if (!this.$$instance)
-  {
-    // Allow calling the constructor
-    this.$$allowconstruct = true;
 
-     // null means "object is being created"; needed for another call
-     // of getInstance() during instantiation
-    this.$$instance = null;
-
-    // Obtain the singleton instance
-    this.$$instance = new this();
-
-    // Disallow, again, calling the constructor
-    delete this.$$allowconstruct;
-  }
-
-  return this.$$instance;
-}
-
-/**
- * Get the internal class of the value. See
- * http://perfectionkills.com/instanceof-considered-harmful-or-how-to-write-a-robust-isarray/
- * for details.
- *
- * @param value {var} value to get the class for
- * @return {String} the internal class of the value
- */
-function getClass(value)
-{
-  // The typeof null and undefined is "object" under IE8
-  if (value === undefined)
-  {
-    return "Undefined";
-  }
-  else if (value === null)
-  {
-    return "Null";
-  }
-
-  let classString = Object.prototype.toString.call(value);
-  return (
-    qx.Bootstrap.__classToTypeMap[classString] || classString.slice(8, -1)
-  );
-}
+//
+// Extras
+//
 
 function assert(message, assertionSuccess)
 {

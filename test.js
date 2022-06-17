@@ -28,6 +28,20 @@ qx.Class.define(
 //          return value ? 23 : 42;
           return value;
         }
+      },
+
+      nullableProp :
+      {
+        init : 10,
+        check : "Number",
+        nullable : true
+      },
+
+      nonNullableProp :
+      {
+        init : 10,
+        check : "Number",
+        nullable : false
       }
     },
 
@@ -551,6 +565,27 @@ qx.Class.define(
            '"members":{"methodA":["method-a-anno"]},' +
            '"properties":{"alpha":["property-alpha-anno"]}' +
            '}');
+
+    // Test nullable
+    try
+    {
+      superinstance.nullableProp = null;
+      assert("nullable property can be set to null", true);
+    }
+    catch(e)
+    {
+      assert("nullable property can be set to null", false);
+    }
+
+    try
+    {
+      superinstance.nonNullableProp = null;
+      assert("non-nullable property can not be set to null", false);
+    }
+    catch(e)
+    {
+      assert("non-nullable property can not be set to null", true);
+    }
 
     //
     // Keep these delay tests last in the test...
