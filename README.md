@@ -43,7 +43,7 @@ The test program is `test.js`.
 - [x] nullable
 - [x] refine (currently allows complete redefinition of property)
 - [x] transform
-- [ ] validate
+- [x] validate
 - [ ] dereference
 - [ ] deferredInit (deprecated; see `initFunction`, below)
 - [ ] isEqual
