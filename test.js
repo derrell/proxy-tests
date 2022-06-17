@@ -16,7 +16,6 @@ qx.Class.define(
       running :
       {
         init : true,
-//        readonly : true,
         check : "Boolean",
         event : "changeRunning",
         apply : "_applyRunning",
@@ -55,6 +54,12 @@ qx.Class.define(
             throw new Error("value must be greater than 0");
           }
         }
+      },
+
+      readOnly :
+      {
+        initFunction : () => 42,
+        readonly : true
       }
     },
 
@@ -619,6 +624,17 @@ qx.Class.define(
     catch(e)
     {
       assert("validated property can not be set to illegal value", true);
+    }
+
+    // Test readonly
+    try
+    {
+      superinstance.readOnly = 0;
+      assert("readonly property can not be set", false);
+    }
+    catch(e)
+    {
+      assert("readonly property can not be set", true);
     }
 
     //

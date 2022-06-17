@@ -104,6 +104,7 @@ let $$allowedKeys =
       isEqual: stringOrFunction,  // String, Function
 
       // Not in original set of allowed keys:
+      readonly: "boolean",        // Boolean
       get: stringOrFunction,      // String, Function
       initFunction: "function",   // Function
       storage: "object"           // Map
@@ -374,44 +375,48 @@ function define(className, config)
   {
     let             property = properties[key];
     let             propertyFirstUp= key[0].toUpperCase() + key.substr(1);
-    const           storage =
-      properties.storage
-        ? properties.storage
-        : {
-            get(prop)
-            {
-              return this[prop];
-            },
+    let             storage;
 
-            set(prop, value)
-            {
-              if (property.readonly)
-              {
-                throw new Error(
-                  `Attempt to set value of readonly property ${prop}`);
-              }
-              this[prop] = value;
-            }
-          };
-
-    // If using the default storage mechanism, create the property.
-    //
-    // If using own storage mechanism, it is required to either
-    // initialize the value in the storage mechanism, or call
-    // `initPropertyName()` from the constructor to set the initial
-    // value.
     if (! properties.storage)
     {
-      Object.defineProperty(
-        clazz.prototype,
-        key,
+      properties.storage =
         {
-          value        : property.init,
-          writable     : "readonly" in property ? property.readonly : true,
-          configurable : false,
-          enumerable   : false
-        });
+          init(propertyName, property)
+          {
+            Object.defineProperty(
+              clazz.prototype,
+              key,
+              {
+                value        : property.init,
+                writable     : ("readonly" in property
+                                ? property.readonly
+                                : true),
+                configurable : false,
+                enumerable   : false
+              });
+          },
+
+          get(prop)
+          {
+            return this[prop];
+          },
+
+          set(prop, value)
+          {
+            if (property.readonly)
+            {
+              throw new Error(
+                `Attempt to set value of readonly property ${prop}`);
+            }
+            this[prop] = value;
+          }
+        };
     }
+
+    storage = properties.storage;
+
+    // Initialize the property
+    storage.init(key, Object.assign({}, property));
 
     // Create the legacy property getter, getPropertyName
     Object.defineProperty(
