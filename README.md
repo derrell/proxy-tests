@@ -40,7 +40,7 @@ The test program is `test.js`.
 - [ ] themeable
 - [ ] inheritable
 - [x] init
-- [ ] nullable
+- [x] nullable
 - [x] refine (currently allows complete redefinition of property)
 - [x] transform
 - [ ] validate
