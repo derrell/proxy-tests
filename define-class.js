@@ -404,7 +404,8 @@ function define(className, config)
           {
             if (property.initFunction)
             {
-              storage.set.call(this, key, property.initFunction());
+              storage.set.call(
+                this, key, property.initFunction.call(this, key));
             }
             else if (property.init)
             {

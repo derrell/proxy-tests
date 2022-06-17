@@ -76,11 +76,13 @@ The test program is `test.js`.
 - [ ] fast property definition
 - [ ] integration with references
   - [x] `initFunction` (in lieu of `init`). Added to a property
-    definition, this is a function that will be called with no
-    arguments, when `initProperty()` is called, and automatically,
-    immediately before the constructor is called. The function should
-    return the initial value. This allows a unique initial value, even
-    if it's a reference type, per object instance.
+    definition, this is a function that will be called with one
+    argument: the property name. It is called when `initProperty()` is
+    called, but calling `initProperty() is generally unnecessary, as
+    the `initFunction` is called automatically, immediately before the
+    constructor is called. The function should return the initial
+    value. This allows a unique initial value, even if it's a
+    reference type, per object instance.
   - [ ] hard
   - [ ] weak
   - [ ] soft

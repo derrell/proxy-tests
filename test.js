@@ -168,9 +168,9 @@ qx.Class.define(
     {
       arr :
       {
-        initFunction : () =>
+        initFunction : function(key)
         {
-          console.log("Allocating a new array object");
+          console.log(`Allocating a new array object for property '${key}'`);
           return [];
         }
       }
