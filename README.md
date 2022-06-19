@@ -46,7 +46,7 @@ The test program is `test.js`.
 - [x] transform
 - [x] validate
 - [x] dereference
-- [ ] deferredInit (deprecated; see `initFunction`, below)
+- [x] deferredInit (deprecated; see `initFunction`, below)
 - [ ] isEqual
 - [ ] property groups
   - [ ] name

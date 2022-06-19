@@ -84,7 +84,7 @@ let qx =
  * @internal
  */
 let stringOrFunction = [ "string", "function" ];
-let $$allowedKeys =
+let $$allowedPropKeys =
     {
       "@": null,                  // Anything
       name: "string",             // String
@@ -115,13 +115,25 @@ let $$allowedKeys =
  *
  * @internal
  */
-let $$allowedGroupKeys =
+let $$allowedPropGroupKeys =
     {
       "@": null,                  // Anything
       name: "string",             // String
       group: "object",            // Array
       mode: "string",             // String
       themeable: "boolean"        // Boolean
+    };
+
+/**
+ * Deprecated keys for properties, that we want to warn about
+ *
+ * @internal
+ */
+let $$deprecatedPropKeys =
+    {
+      deferredInit :
+        `'deferredInit' is deprecated and ignored. ` +
+        `See the new property key 'initFunction' as a likely replacement.`
     };
 
 function define(className, config)
@@ -1399,7 +1411,7 @@ function __validatePropertyDefinitions(className, config)
     let             property = properties[prop];
 
     // Set allowed keys based on whether this is a grouped property or not
-    allowedKeys = property.group ? $$allowedGroupKeys : $$allowedKeys;
+    allowedKeys = property.group ? $$allowedPropGroupKeys : $$allowedPropKeys;
 
     // Ensure only allowed keys were provided
     Object.keys(property).forEach(
@@ -1413,6 +1425,12 @@ function __validatePropertyDefinitions(className, config)
             `${className}: ` +
               (property.group ? "group " : "") +
               `property '${prop}' defined with unrecognized key '${key}'`);
+        }
+
+        // Flag any deprecated keys
+        if (key in $$deprecatedPropKeys)
+        {
+          console.warn(`Property '${prop}': ${$$deprecatedPropKeys[key]}`);
         }
 
         if (allowed !== null)
