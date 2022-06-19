@@ -411,6 +411,8 @@ function define(className, config)
 
     if (! property.storage)
     {
+      // Create the default storage mechanism for properties, used when
+      // the property doesn't provide its own storage functions.
       property.storage =
         {
           init(propertyName, property)
@@ -439,6 +441,13 @@ function define(className, config)
                 `Attempt to set value of readonly property ${prop}`);
             }
             this[prop] = value;
+          },
+
+          dereference(prop, property)
+          {
+            // Called immediately after the destructor, if the
+            // property has `dereference : true`.
+            delete this[prop];
           }
         };
     }
@@ -807,19 +816,52 @@ function define(className, config)
     __addEvents(clazz, config.events, true);
   }
 
-  // Store destruct onto class
-  if (config.destruct)
+  //
+  // Store destruct onto class. We wrap their function (or an empty
+  // function) in code that also handles any properties that
+  // require`dereference : true`
+  //
+  let             destruct = config.destruct || function() {};
+
+  if (qx.core.Environment.get("qx.aspects"))
   {
-    let             destruct;
-
-    if (qx.core.Environment.get("qx.aspects"))
-    {
-      destruct = qx.core.Aspect.wrap(className, destruct, "destructor");
-    }
-
-    clazz.$$destructor = destruct;
-    qx.Bootstrap.setDisplayName(destruct, className, "destruct");
+    destruct = qx.core.Aspect.wrap(className, destruct, "destructor");
   }
+
+  // Wrap the destructor in a function that calls the original
+  // destructor and then deletes any property remnants for
+  // properties that are marked as `dereference : true`.
+  let destructDereferencer = function()
+  {
+    let             properties = this.constructor.$$allProperties;
+
+    // First call the original or aspect-wrapped destruct method
+    destruct.call(this);
+
+    // Now ensure all properties marked with `derefrence : true`
+    // have their saved values removed from this object.
+    for (let prop in properties)
+    {
+      let           property = properties[prop];
+
+      if (property.dereference)
+      {
+        // If the storage mechanism has a dereference method, let it
+        // do its thing
+        property.storage.dereference &&
+          property.storage.dereference.call(this, prop, property);
+
+        // Get rid of our internal storage of the various possible
+        // values for this property
+        delete this[`$$user_${prop}`];
+        delete this[`$$theme_${prop}`];
+        delete this[`$$inherit_${prop}`];
+      }
+    }
+  };
+
+  clazz.$$destructor = destructDereferencer;
+  qx.Bootstrap.setDisplayName(destructDereferencer, className, "destruct");
 
   // Create the specified namespace
   path = globalThis;

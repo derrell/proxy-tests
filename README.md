@@ -45,7 +45,7 @@ The test program is `test.js`.
 - [x] refine (currently allows complete redefinition of property)
 - [x] transform
 - [x] validate
-- [ ] dereference
+- [x] dereference
 - [ ] deferredInit (deprecated; see `initFunction`, below)
 - [ ] isEqual
 - [ ] property groups

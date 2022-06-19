@@ -1,9 +1,49 @@
 const { qx, assert } = require("./define-class");
 
 qx.Class.define(
-  "tester.Superclass",
+  "tester.Object",
   {
     extend : Object,
+
+    members :
+    {
+      dispose : function()
+      {
+        let             clazz = this.constructor;
+
+        while (clazz.superclass)
+        {
+          // Processing this class...
+          if (clazz.$$destructor)
+          {
+            clazz.$$destructor.call(this);
+          }
+
+          // // Destructor support for mixins
+          // if (clazz.$$includes)
+          // {
+          //   let             mixins = clazz.$$flatIncludes;
+
+          //   for (var i = 0, l = mixins.length; i < l; i++)
+          //   {
+          //     if (mixins[i].$$destructor)
+          //     {
+          //       mixins[i].$$destructor.call(this);
+          //     }
+          //   }
+          // }
+
+          // Jump up to next super class
+          clazz = clazz.superclass;
+        }
+      }
+    }
+  });
+
+qx.Class.define(
+  "tester.Superclass",
+  {
+    extend : tester.Object,
 
     construct : function(bRunning)
     {
@@ -185,7 +225,7 @@ qx.Class.define(
 qx.Class.define(
   "tester.Arr",
   {
-    extend : Object,
+    extend : tester.Object,
 
     // Show how qx.data.Array could be indexed rather than getItem()
     proxyHandler :
@@ -374,7 +414,7 @@ assert("missing 'type' without 'extend' assumes 'static'", true);
 qx.Class.define(
   "tester.Annotations",
  {
-   extend : Object,
+   extend : tester.Object,
 
    "@construct" : ["construct-anno"],
    "@destruct" : ["destruct-anno"],
@@ -431,7 +471,7 @@ let layoutParent;
 qx.Class.define(
   "tester.LayoutChild",
   {
-    extend : Object,
+    extend : tester.Object,
 
     properties :
     {
@@ -439,6 +479,12 @@ qx.Class.define(
       {
         init : "inherit",
         inheritable : true
+      },
+
+      mustBeDereferenced :
+      {
+        initFunction : () => "hello world",
+        dereference : true
       }
     },
 
@@ -696,6 +742,13 @@ qx.Class.define(
            layoutChild.positive === "inherit");
     layoutChild.refresh();
     assert("layoutChild.positive === 2", layoutChild.positive === 2);
+
+    // dereference tests
+    assert("layoutChild.mustBeDereferenced === 'hello world'",
+           layoutChild.mustBeDereferenced === "hello world");
+    layoutChild.dispose();
+    assert("layoutChild.mustBeDereferenced is undefined after dispose()",
+           typeof layoutChild.mustBeDereferenced == "undefined");
 
     //
     // Keep these delay tests last in the test...
