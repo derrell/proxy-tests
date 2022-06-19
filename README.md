@@ -57,14 +57,14 @@ The test program is `test.js`.
   - [x] getProperty()
   - [x] setProperty()
   - [x] initProperty()
-  - [x] isProperty() if `check === "Boolean"`
-  - [x] toggleProperty() if `check === "Boolean"`
-  - [x] getPropertyAsync() if `async`
-  - [x] setPropertyAsync() if `async` and `apply`
-  - [x] resetProperty()
-  - [x] setThemedProperty()
-  - [x] resetThemedProperty()
-  - [x] refreshProperty
+  - [x] isProperty() -- if `check === "Boolean"`
+  - [x] toggleProperty() -- if `check === "Boolean"`
+  - [x] getPropertyAsync() -- if `async`
+  - [x] setPropertyAsync() -- if `async` and `apply`
+  - [x] setThemedProperty() -- if 'themeable'
+  - [x] resetThemedProperty() -- if 'themeable'
+  - [x] resetProperty() -- if 'inheritable'
+  - [x] refreshProperty -- if 'inheritable'
 
 # John's requested new Property features currently implemented
 - [x] native properties
