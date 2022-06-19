@@ -66,6 +66,10 @@ qx.Class.define(
 
 //          return value ? 23 : 42;
           return value;
+        },
+        isEqual : function(a, b)
+        {
+          return a === b;
         }
       },
 
@@ -115,6 +119,12 @@ qx.Class.define(
 
       _applyRunning : function(value, old)
       {
+        if (value === old)
+        {
+          throw new Error(
+            "superclass: _applyRunning called with identical value");
+        }
+
         console.log(
           `superclass apply running: value changing from ${old} to ${value}`);
       }
@@ -496,6 +506,7 @@ qx.Class.define(
       }
     }
   });
+
 
 (async () =>
   {

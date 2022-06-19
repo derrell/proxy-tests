@@ -136,6 +136,8 @@ let $$deprecatedPropKeys =
         `See the new property key 'initFunction' as a likely replacement.`
     };
 
+let isEqual = (a, b) => a === b;
+
 function define(className, config)
 {
   let             allowedKeys;
@@ -421,10 +423,17 @@ function define(className, config)
     let             propertyFirstUp = key[0].toUpperCase() + key.substr(1);
     let             storage;
 
+    // If there's no comparison function specified for this property...
+    if (! property.isEqual)
+    {
+      // ... then create the default comparison function
+      property.isEqual = isEqual;
+    }
+
+    // If there's no storage mechanism specified for this property...
     if (! property.storage)
     {
-      // Create the default storage mechanism for properties, used when
-      // the property doesn't provide its own storage functions.
+      // ... then create the default storage mechanism for it
       property.storage =
         {
           init(propertyName, property)
@@ -538,6 +547,7 @@ function define(className, config)
         value        : function(value)
         {
           this[key] = value;
+          return value;
         },
         writable     : false,
         configurable : false,
@@ -795,9 +805,26 @@ function define(className, config)
           value        : function(value)
           {
             let             old = this[key];
+            let             ret;
             
+            // // If the value hasn't changed since last time, do nothing
+            // if (property.isEqual(value, old))
+            // {
+            //   return Promise.resolve(undefined);
+            // }
+
             this[key] = value;
-            return apply.call(this, value, old);
+            ret = apply.call(this, value, old);
+
+            // Now that we have the async result, fire the change event
+            if (property.event)
+            {
+              console.log(
+                `Would generate event type ${property.event} ` +
+                  `{ value: ${value}, old: ${old} } (async event)`);
+            }
+
+            return ret;
           },
           writable     : false,
           configurable : false,
@@ -1134,7 +1161,9 @@ function _extend(className, config)
                 // Does it a synchronous method with an apply method?
                 // (Async properties' apply method is called directly from
                 // setPropertyNameAsync() )
-                if (property.apply && ! property.async)
+                if (property.apply &&
+                    ! property.async &&
+                    ! property.isEqual(value, old))
                 {
                   // It does. Call it.
                   if (typeof property.apply == "function")
@@ -1148,7 +1177,9 @@ function _extend(className, config)
                 }
 
                 // Are we requested to generate an event?
-                if (property.event && value != old)
+                if (property.event &&
+                    ! property.async &&
+                    ! property.isEqual(value, old))
                 {
                   console.log(
                     `Would generate event type ${property.event} ` +
