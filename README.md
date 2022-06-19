@@ -38,7 +38,7 @@ The test program is `test.js`.
 - [x] apply (as both string member name and as function)
 - [x] event (currently just says what it would do)
 - [ ] themeable
-- [ ] inheritable
+- [x] inheritable
 - [x] init
 - [x] nullable
 - [x] refine (currently allows complete redefinition of property)
@@ -60,13 +60,19 @@ The test program is `test.js`.
   - [x] toggleProperty() if `check === "Boolean"`
   - [x] getPropertyAsync() if `async`
   - [x] setPropertyAsync() if `async` and `apply`
-  - [ ] resetProperty()
-  - [ ] setThemedProperty()
-  - [ ] resetThemedProperty()
+  - [x] resetProperty()
+  - [x] setThemedProperty()
+  - [x] resetThemedProperty()
 
 # John's requested new Property features currently implemented
 - [x] native properties
 - [x] properties are first-class objects
+- [x] readonly properties. `init` and `initFunction`, and therefore
+  the`initProperty()` methods, intentionally ignore `readonly` so that
+  the property's value can be set. This is true even if manually
+  calling `initProperty()`. Since `initFunction` can and often will
+  return a unique value, this technically voids the `readonly`
+  contract, but seems like the right thing to do in this case.
 - [x] storage can be completely replaced
 - [?] eliminate need for pseudo-properties (maybe done?)
 - [?] eliminate need for property sniffing/detection (maybe done?)

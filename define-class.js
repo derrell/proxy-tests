@@ -312,6 +312,37 @@ function define(className, config)
     __attachAnno(clazz, "statics", key, config.statics["@" + key]);
   }
 
+  // Add a method to refresh all inheritable properties
+  Object.defineProperty(
+    clazz.prototype,
+    "refresh",
+    {
+      value        : function()
+      {
+        let             allProperties = this.constructor.$$allProperties;
+
+        // Call the refresh method of each inheritable property
+        for (let prop in allProperties)
+        {
+          let             property = allProperties[prop];
+
+          if (property.inheritable)
+          {
+            let             propertyFirstUp =
+                prop[0].toUpperCase() + prop.substr(1);
+
+            // Call this property's refresh method
+            this[`refresh${propertyFirstUp}`]();
+          }
+        }
+      },
+      writable     : false,
+      configurable : false,
+      enumerable   : false
+    });
+
+
+
   // Add members
   for (let key in (config.members || {}))
   {
@@ -348,6 +379,7 @@ function define(className, config)
       }
     }
 
+    // Create the storage for this member
     Object.defineProperty(
       clazz.prototype,
       key,
@@ -374,12 +406,12 @@ function define(className, config)
   for (let key in properties)
   {
     let             property = properties[key];
-    let             propertyFirstUp= key[0].toUpperCase() + key.substr(1);
+    let             propertyFirstUp = key[0].toUpperCase() + key.substr(1);
     let             storage;
 
-    if (! properties.storage)
+    if (! property.storage)
     {
-      properties.storage =
+      property.storage =
         {
           init(propertyName, property)
           {
@@ -388,9 +420,7 @@ function define(className, config)
               key,
               {
                 value        : property.init,
-                writable     : ("readonly" in property
-                                ? property.readonly
-                                : true),
+                writable     : true, // must be true for possible initFunction
                 configurable : false,
                 enumerable   : false
               });
@@ -413,10 +443,57 @@ function define(className, config)
         };
     }
 
-    storage = properties.storage;
+    storage = property.storage;
 
     // Initialize the property
     storage.init(key, Object.assign({}, property));
+
+    // There are three values that may be used when `resetProperty` is called:
+    // - the user-assigned value
+    // - a theme's value (if the property is themeable)
+    // - an inherited value (if the property is inheritable)
+    //
+    // Create the legacy names for these values, which are used at
+    // various places in and around the qooxdoo framework code.
+
+    // user-specified
+    Object.defineProperty(
+      clazz.prototype,
+      `$$user_${key}`,
+      {
+        value        : undefined,
+        writable     : true,
+        configurable : false,
+        enumerable   : false
+      });
+
+    // theme-specified
+    if (property.themeable)
+    {
+      Object.defineProperty(
+        clazz.prototype,
+        `$$theme_${key}`,
+        {
+          value        : undefined,
+          writable     : true,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    // inheritable
+    if (property.inheritable)
+    {
+      Object.defineProperty(
+        clazz.prototype,
+        `$$inherit_${key}`,
+        {
+          value        : undefined,
+          writable     : true,
+          configurable : false,
+          enumerable   : false
+        });
+    }
 
     // Create the legacy property getter, getPropertyName
     Object.defineProperty(
@@ -446,6 +523,139 @@ function define(className, config)
         enumerable   : false
       });
 
+    if (property.inheritable)
+    {
+      // Create this property's resetProperty method
+      Object.defineProperty(
+        clazz.prototype,
+        `reset${propertyFirstUp}`,
+        {
+          value        : function(value)
+          {
+            // Get the current user-specified value
+            let             inheritValue =
+                (property.inheritable
+                 ? this[`$$inherit_${key}`]
+                 : undefined);
+            let             initValue =
+                (property.initFunction
+                 ? property.initFunction.call(this)
+                 : ("init" in property
+                    ? property.init
+                    : undefined));
+
+            // Unset the user value
+            this[`$$user_${key}`] = undefined;
+
+            // Select the new value
+            this[key] = inheritValue !== undefined ? inheritValue : initValue;
+          },
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+
+      // Create this property's refreshProperty method
+      Object.defineProperty(
+        clazz.prototype,
+        `refresh${propertyFirstUp}`,
+        {
+          value        : function()
+          {
+            let             inheritedValue;
+            let             layoutParent;
+            let             userValue = this[`$$user_${key}`];
+
+            // If there's a user value, it takes precedence
+            if (typeof userValue != "undefined")
+            {
+              // Use the user value as the property value
+              this[key] = userValue;
+              return;
+            }
+
+            // If there's a layout parent and if it has a property of
+            // this name, ...
+            layoutParent =
+              (typeof this.getLayoutParent == "function"
+               ? this.getLayoutParent()
+               : undefined);
+            if (layoutParent && typeof layoutParent[key] != "undefined")
+            {
+              // ... then retrieve its value
+              inheritedValue = layoutParent[key];
+
+              // If we found a value to inherit...
+              if (typeof inheritedValue != "undefined")
+              {
+                // ... then save the inherited value, ...
+                this[`$$inherit_${key}`] = inheritedValue;
+
+                // ... and also use the inherited value as the property value
+                this[key] = inheritedValue;
+              }
+            }
+          },
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    if (property.themeable)
+    {
+      // Create this property's setThemedProperty method
+      Object.defineProperty(
+        clazz.prototype,
+        `setThemed${propertyFirstUp}`,
+        {
+          value        : function(value)
+          {
+            // Get the current user-specified value
+            let             userValue = this[`$$user_${key}`];
+
+            // Save the provided themed value
+            this[`$$theme_${key}`] = value;
+
+            // User value has precedence, so if it's not set, use theme value
+            if (userValue === undefined)
+            {
+              this[key] = value;
+            }
+          },
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+
+      // Create this property's resetThemedProperty method
+      Object.defineProperty(
+        clazz.prototype,
+        `resetThemed${propertyFirstUp}`,
+        {
+          value        : function(value)
+          {
+            // Get the current user-specified value
+            let             userValue = this[`$$user_${key}`];
+            let             initValue =
+                (property.initFunction
+                 ? property.initFunction.call(this)
+                 : ("init" in property
+                    ? property.init
+                    : undefined));
+
+            // Unset the themed value
+            this[`$$theme_${key}`] = undefined;
+
+            // Select the new value
+            this[key] = userValue !== undefined ? userValue : initValue;
+          },
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
     // If there's an init or initFunction handler, ...
     if (typeof property.init != "undefined" ||
         typeof property.initFunction == "function")
@@ -457,6 +667,11 @@ function define(className, config)
         {
           value        : function()
           {
+            // Allow storing init value even if readonly
+            let             readonly = property.readonly;
+
+            property.readonly = false;
+
             if (property.initFunction)
             {
               storage.set.call(
@@ -466,6 +681,9 @@ function define(className, config)
             {
               storage.set.call(this, key, property.init);
             }
+
+            // Reset the original value of readonly
+            property.readonly = readonly;
           },
           writable     : false,
           configurable : false,
@@ -661,7 +879,7 @@ function _extend(className, config)
             }));
   const           properties = config.properties;
   const           customProxyHandler = config.proxyHandler;
-  let             allProperties = superclass.$$properties || {};
+  let             allProperties = superclass.$$allProperties || {};
   let             initFunctions = [];
 
   // Ensure there are no properties defined that overwrite
@@ -698,11 +916,22 @@ function _extend(className, config)
   subclass.prototype.base = base;
   subclass.prototype.constructor = subclass;
 
+  // Save this object's properties
+  Object.defineProperty(
+    subclass,
+    "$$properties",
+    {
+      value        : properties || {},
+      writable     : false,
+      configurable : false,
+      enumerable   : false
+    });
+
   // Save the full chain of properties for this class
   allProperties = Object.assign({}, allProperties, properties || {});
   Object.defineProperty(
     subclass,
-    "$$properties",
+    "$$allProperties",
     {
       value        : allProperties,
       writable     : false,
@@ -761,11 +990,12 @@ function _extend(className, config)
           {
             get : function(obj, prop)
             {
-              let             property = subclass.$$properties[prop];
+              let             property = subclass.$$allProperties[prop];
               const           storage =
                 property && property.storage
                     ? property.storage
                     : {
+                        // get non-properties from standard storage
                         get(prop)
                         {
                           return this[prop];
@@ -789,11 +1019,12 @@ function _extend(className, config)
             {
               let             origValue = value;
               let             old = Reflect.get(obj, prop);
-              let             property = subclass.$$properties[prop];
+              let             property = subclass.$$allProperties[prop];
               const           storage =
                 property && property.storage
                     ? property.storage
                     : {
+                        // set non-properties to standard storage
                         set(prop, value)
                         {
                           this[prop] = value;
@@ -838,11 +1069,11 @@ function _extend(className, config)
                   // It does. Call it. It throws an error on validation failure
                   if (typeof property.validate == "function")
                   {
-                    value = property.validate.call(obj, value);
+                    property.validate.call(obj, value);
                   }
                   else // otherwise it's a string
                   {
-                    value = obj[property.validate].call(obj, value);
+                    obj[property.validate].call(obj, value);
                   }
                 }
 
@@ -876,7 +1107,13 @@ function _extend(className, config)
                   throw new Error(
                     `Attempt to set value of readonly property ${prop}`);
                 }
+
+                // Save the value
                 storage.set.call(obj, prop, value);
+
+                // Also specify that this was a user-specified value
+                this[`$$user_${prop}`] = value;
+
                 return true;
               }
 
@@ -898,7 +1135,7 @@ function _extend(className, config)
         target.$$initFunctions.forEach(
           (prop) =>
           {
-            let       propertyFirstUp= prop[0].toUpperCase() + prop.substr(1);
+            let       propertyFirstUp = prop[0].toUpperCase() + prop.substr(1);
 
             // Initialize this property
             obj[`init${propertyFirstUp}`]();

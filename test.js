@@ -81,10 +81,7 @@ qx.Class.define(
     }
   });
 
-let subclassStorage =
-    {
-      externallyStored : 0
-    };
+let subclassStorage;
 
 qx.Class.define(
   "tester.Subclass",
@@ -136,6 +133,14 @@ qx.Class.define(
         init : 10,
         storage :
         {
+          init(propertyName, property)
+          {
+            subclassStorage =
+              {
+                externallyStored : 0
+              };
+          },
+
           get(prop)
           {
             console.log("in externallyStored getter");
@@ -402,6 +407,50 @@ qx.Class.define(
    }
  });
 
+qx.Class.define(
+  "tester.LayoutParent",
+  {
+    extend : tester.Superclass,
+
+    construct : function()
+    {
+      console.log(`LayoutParent constructor`);
+      this.base(arguments, false);
+      console.log("positive=", this.positive);
+      this.positive = 2;
+      console.log("positive=", this.positive);
+    },
+
+    properties :
+    {
+    }
+  });
+
+let layoutParent;
+
+qx.Class.define(
+  "tester.LayoutChild",
+  {
+    extend : Object,
+
+    properties :
+    {
+      positive :
+      {
+        init : "inherit",
+        inheritable : true
+      }
+    },
+
+    members :
+    {
+      getLayoutParent : function()
+      {
+        return layoutParent;
+      }
+    }
+  });
+
 (async () =>
   {
     // validate toString() of class definition
@@ -441,6 +490,8 @@ qx.Class.define(
     assert("staticEntry === 'I am static'",
            tester.Subclass.staticEntry === 'I am static');
     assert("sub num === 23", subinstance.num === 23);
+    subinstance.num = 24;
+    assert("sub num === 24", subinstance.num === 24);
     assert("sub str === 'hello world'", subinstance.str === 'hello world');
     assert("sub getRunning() === true", subinstance.getRunning() === true);
     subinstance.running = false;
@@ -636,6 +687,15 @@ qx.Class.define(
     {
       assert("readonly property can not be set", true);
     }
+
+    // Inheritable tests
+    layoutParent = new tester.LayoutParent();
+    assert("layoutParent.positive === 2", layoutParent.getPositive() === 2);
+    let layoutChild = new tester.LayoutChild();
+    assert("layoutChild.positive === 'inherit'",
+           layoutChild.positive === "inherit");
+    layoutChild.refresh();
+    assert("layoutChild.positive === 2", layoutChild.positive === 2);
 
     //
     // Keep these delay tests last in the test...
