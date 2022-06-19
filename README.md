@@ -31,13 +31,14 @@ The test program is `test.js`.
 - [x] destruct
 - [x] this.constructor
 - [x] annotations
+- [x] refresh()
 
 # Legacy Property features currently implemented
 - [x] check (currently just says what it would do)
 - [ ] stock check strings mapped to check methods
 - [x] apply (as both string member name and as function)
 - [x] event (currently just says what it would do)
-- [ ] themeable
+- [x] themeable
 - [x] inheritable
 - [x] init
 - [x] nullable
@@ -52,7 +53,7 @@ The test program is `test.js`.
   - [ ] group
   - [ ] mode
   - [ ] themeable
-- [ ] generated methods
+- [x] generated methods
   - [x] getProperty()
   - [x] setProperty()
   - [x] initProperty()
@@ -63,6 +64,7 @@ The test program is `test.js`.
   - [x] resetProperty()
   - [x] setThemedProperty()
   - [x] resetThemedProperty()
+  - [x] refreshProperty
 
 # John's requested new Property features currently implemented
 - [x] native properties
