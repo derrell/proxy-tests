@@ -842,7 +842,6 @@ qx.Class.define(
     console.log("setting async delay property; should delay a few seconds");
     let startTime = new Date();
     let p = subinstance.setDelayAsync(0); // returns a promise
-    let date = new Date();
     let interval = setInterval(
       () =>
       {
