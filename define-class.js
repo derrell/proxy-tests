@@ -1322,10 +1322,16 @@ function _extend(className, config)
                   }
                 }
 
-                // Does it have a check to be done?
+                // Does it have a check to be done? If nullable and
+                // the value is null, we don't run the check
                 if (property.check)
                 {
-                  if ($$checks.has(property.check))
+                  // If the property is nullable and the value is null...
+                  if (property.nullable && value === null)
+                  {
+                    // ... then we don't do the check
+                  }
+                  else if ($$checks.has(property.check))
                   {
                     if (! $$checks.get(property.check)(value))
                     {
