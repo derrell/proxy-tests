@@ -80,6 +80,7 @@ The test program is `test.js`.
 - [?] eliminate need for property sniffing/detection (maybe done?)
 - [ ] support for private and protected properties
 - [ ] more advanced and reusable type checking
+  Consider https://github.com/jsdoctypeparser/jsdoctypeparser
 - [ ] immutability and mutation detection
 - [ ] fast property definition
 - [ ] integration with references
