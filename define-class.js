@@ -927,26 +927,71 @@ function define(className, config)
         });
     }
 
-    if (property.async && property.get)
+    if (property.async)
     {
       let             get;
+      let             apply;
 
-      // It does. Call it.
+      // Obtain the required get function
       if (typeof property.get == "function")
       {
         get = property.get;
       }
-      else // otherwise it's a string
+      else if (typeof property.get == "string")
       {
         get = clazz.prototype[property.get];
       }
+
+      // Obtain the required apply function
+      if (typeof property.apply == "function")
+      {
+        apply = property.apply;
+      }
+      else if (typeof property.apply == "string")
+      {
+        apply = clazz.prototype[property.apply];
+      }
+
+      // Both get and apply must be provided
+      if (typeof get != "function" || typeof apply != "function")
+      {
+        throw new Error(
+          `${key}: ` +
+            `async property requires that both 'get' and 'apply' be provided`);
+      }
+
+      // Create a place to store the current promise for the async setter
+      Object.defineProperty(
+        clazz.prototype,
+        `$$activePromise${propertyFirstUp}`,
+        {
+          value        : null,
+          writable     : true,
+          configurable : false,
+          enumerable   : false
+        });
+
+      // Create a function that tells the user whether the most recent
+      // call to the setter has reolved
+      Object.defineProperty(
+        clazz.prototype,
+        `isAsyncSetActive${propertyFirstUp}`,
+        {
+          value        : function()
+          {
+            return this[`$$activePromise${propertyFirstUp}`] === null;
+          },
+          writable     : true,
+          configurable : false,
+          enumerable   : false
+        });
 
       // Create the async property getter, getPropertyNameAsync
       Object.defineProperty(
         clazz.prototype,
         `get${propertyFirstUp}Async`,
         {
-          value        : function()
+          value        : async function()
           {
             return get.call(this);
           },
@@ -954,47 +999,62 @@ function define(className, config)
           configurable : false,
           enumerable   : false
         });
-    }
 
-    if (property.async && property.apply)
-    {
-      let             apply;
-
-      // It does. Call it.
-      if (typeof property.apply == "function")
-      {
-        apply = property.apply;
-      }
-      else // otherwise it's a string
-      {
-        apply = clazz.prototype[property.apply];
-      }
-      
       // Create the async property setter, setPropertyNameAsync.
       Object.defineProperty(
         clazz.prototype,
         `set${propertyFirstUp}Async`,
         {
-          value        : function(value)
+          value        : async function(value)
           {
-            let             old = this[key];
-            let             ret;
-            
-            // // If the value hasn't changed since last time, do nothing
-            // if (property.isEqual(value, old))
-            // {
-            //   return qx.Promise.resolve(undefined);
-            // }
+            let        activePromise;
+            let        activePromiseProp = `$$activePromise${propertyFirstUp}`;
 
-            this[key] = value;
-            ret = apply.call(this, value, old);
+            const           setImpl = async function()
+            {
+              let      old;
 
-            // Now that we have the async result, fire the change event
-            console.log(
-              `Would generate event type ${property.event} ` +
-                `{ value: ${value}, old: ${old} } (async event)`);
+              value = Promise.resolve(value);
 
-            return ret;
+              // Obtain the old value, via its async request
+              old = await this[`get${propertyFirstUp}Async`]();
+
+              // If the value has changed since last time, do nothing
+              if (property.isEqual(value, old))
+              {
+                // Save the new property value. This is before any async calls
+                storage.set.call(this, key, value);
+
+                await apply.call(this, value, old, key);
+
+                // Now that we have the async result, fire the change event
+                console.log(
+                  `Would generate event type ${property.event} ` +
+                    `{ value: ${value}, old: ${old} } (async event)`);
+              }
+
+              // If we ar ethe last promise, dispose of the promise
+              if (activePromise === this[activePromiseProp])
+              {
+                this[activePromiseProp] = null;
+              }
+            }.bind(this);
+
+            // If this property already has an active promise...
+            if (this[activePromiseProp])
+            {
+              // ... then add this request to the promise chain
+              activePromise =
+                this[activePromiseProp].then(setImpl);
+            }
+            else
+            {
+              // There are no pending requests. Begin this one right now.
+              activePromise = setImpl();
+            }
+
+            this[activePromiseProp] = activePromise;
+            return activePromise;
           },
           writable     : false,
           configurable : false,

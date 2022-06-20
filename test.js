@@ -226,7 +226,12 @@ qx.Class.define(
           return new qx.Promise(
             (resolve, reject) =>
             {
-              setTimeout(() => { resolve(true); }, 2000);
+              setTimeout(
+                () =>
+                {
+                  resolve(true);
+                },
+                1200);
             });
         },
         apply : async () =>
@@ -234,7 +239,12 @@ qx.Class.define(
           return new qx.Promise(
             (resolve, reject) =>
             {
-              setTimeout(() => { resolve(true); }, 2000);
+              setTimeout(
+                () =>
+                {
+                  resolve(true);
+                },
+                1200);
             });
         }
       }
@@ -831,7 +841,19 @@ qx.Class.define(
     //
     console.log("setting async delay property; should delay a few seconds");
     let startTime = new Date();
-    await subinstance.setDelayAsync(0);
+    let p = subinstance.setDelayAsync(0); // returns a promise
+    let date = new Date();
+    let interval = setInterval(
+      () =>
+      {
+        console.log("while awaiting setDelayAsync: isAsyncSetActiveDelay=",
+                    subinstance.isAsyncSetActiveDelay());
+      },
+      200);
+    await p;
+    clearInterval(interval);
+    console.log("after awaiting setDelayAsync: isAsyncSetActiveDelay=",
+                subinstance.isAsyncSetActiveDelay());
     console.log("returned from delay setter");
     assert("async setter delays more than 1 second",
            new Date().getTime() > startTime.getTime() + 1000);
