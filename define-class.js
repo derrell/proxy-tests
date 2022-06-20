@@ -971,15 +971,15 @@ function define(className, config)
           enumerable   : false
         });
 
-      // Create a function that tells the user whether the most recent
-      // call to the setter has reolved
+      // Create a function that tells the user whether there is still
+      // an active async setter running
       Object.defineProperty(
         clazz.prototype,
         `isAsyncSetActive${propertyFirstUp}`,
         {
           value        : function()
           {
-            return this[`$$activePromise${propertyFirstUp}`] === null;
+            return this[`$$activePromise${propertyFirstUp}`] !== null;
           },
           writable     : true,
           configurable : false,
