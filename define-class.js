@@ -727,38 +727,38 @@ function define(className, config)
         enumerable   : false
       });
 
+    // Create this property's resetProperty method
+    Object.defineProperty(
+      clazz.prototype,
+      `reset${propertyFirstUp}`,
+      {
+        value        : function(value)
+        {
+          // Get the current inherited and init values
+          let             inheritValue =
+              (property.inheritable
+               ? this[`$$inherit_${key}`]
+               : undefined);
+          let             initValue =
+              (property.initFunction
+               ? property.initFunction.call(this)
+               : ("init" in property
+                  ? property.init
+                  : undefined));
+
+          // Unset the user value
+          this[`$$user_${key}`] = undefined;
+
+          // Select the new value
+          this[key] = inheritValue !== undefined ? inheritValue : initValue;
+        },
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
     if (property.inheritable)
     {
-      // Create this property's resetProperty method
-      Object.defineProperty(
-        clazz.prototype,
-        `reset${propertyFirstUp}`,
-        {
-          value        : function(value)
-          {
-            // Get the current user-specified value
-            let             inheritValue =
-                (property.inheritable
-                 ? this[`$$inherit_${key}`]
-                 : undefined);
-            let             initValue =
-                (property.initFunction
-                 ? property.initFunction.call(this)
-                 : ("init" in property
-                    ? property.init
-                    : undefined));
-
-            // Unset the user value
-            this[`$$user_${key}`] = undefined;
-
-            // Select the new value
-            this[key] = inheritValue !== undefined ? inheritValue : initValue;
-          },
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-
       // Create this property's refreshProperty method
       Object.defineProperty(
         clazz.prototype,
