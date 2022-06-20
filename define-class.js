@@ -647,6 +647,10 @@ function define(className, config)
     // Initialize the property
     storage.init(key, Object.assign({}, property));
 
+    // We always generate an event. If the event name isn't specified,
+    // use the default name
+    property.event = property.event || `change${propertyFirstUp}`;
+
     // There are three values that may be used when `resetProperty` is called:
     // - the user-assigned value
     // - a theme's value (if the property is themeable)
@@ -986,12 +990,9 @@ function define(className, config)
             ret = apply.call(this, value, old);
 
             // Now that we have the async result, fire the change event
-            if (property.event)
-            {
-              console.log(
-                `Would generate event type ${property.event} ` +
-                  `{ value: ${value}, old: ${old} } (async event)`);
-            }
+            console.log(
+              `Would generate event type ${property.event} ` +
+                `{ value: ${value}, old: ${old} } (async event)`);
 
             return ret;
           },
@@ -1003,7 +1004,7 @@ function define(className, config)
 
     // Add the event name for this property to the list of events
     // fired by this class
-    let eventName = `change${propertyFirstUp}`;
+    let eventName = property.event;
     let events =
         {
           [eventName] : "qx.event.type.Data"

@@ -38,6 +38,9 @@ The test program is `test.js`.
 - [x] stock check strings mapped to check methods
 - [x] apply (as both string member name and as function)
 - [x] event (currently just says what it would do)
+  This implementation always generates an event. If there's no `event`
+  key in the property definition, the event name is created
+  automatically as `change${propertyFirstUp}`
 - [x] themeable
 - [x] inheritable
 - [x] init
