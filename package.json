@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/derrell/proxy-tests/issues"
   },
-  "homepage": "https://github.com/derrell/proxy-tests#readme"
+  "homepage": "https://github.com/derrell/proxy-tests#readme",
+  "dependencies": {
+    "jsdoctypeparser": "^9.0.0"
+  }
 }

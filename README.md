@@ -35,7 +35,7 @@ The test program is `test.js`.
 
 # Legacy Property features currently implemented
 - [x] check (currently just says what it would do)
-- [ ] stock check strings mapped to check methods
+- [x] stock check strings mapped to check methods
 - [x] apply (as both string member name and as function)
 - [x] event (currently just says what it would do)
 - [x] themeable
@@ -79,8 +79,10 @@ The test program is `test.js`.
 - [?] eliminate need for pseudo-properties (maybe done?)
 - [?] eliminate need for property sniffing/detection (maybe done?)
 - [ ] support for private and protected properties
-- [ ] more advanced and reusable type checking
-  Consider https://github.com/jsdoctypeparser/jsdoctypeparser
+- [x] more advanced and reusable type checking
+  Implemented parsing of JSDoc type strings (but then failing the
+  check if it parsed because nothing yet validates the value against
+  the AST
 - [ ] immutability and mutation detection
 - [ ] fast property definition
 - [ ] integration with references

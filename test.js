@@ -87,6 +87,18 @@ qx.Class.define(
         nullable : false
       },
 
+      jsdocProp :
+      {
+        initFunction : () => [ 10, 20, 30 ],
+        check : "Array<Number>"
+      },
+
+      mustBe42 :
+      {
+        init : 0,
+        check : "value === 42"
+      },
+
       positive :
       {
         init : 1,
@@ -745,7 +757,7 @@ qx.Class.define(
       assert("readonly property can not be set", true);
     }
 
-    // Inheritable tests
+    // Test inheritable
     layoutParent = new tester.LayoutParent();
     assert("layoutParent.positive === 2", layoutParent.getPositive() === 2);
     let layoutChild = new tester.LayoutChild();
@@ -754,12 +766,65 @@ qx.Class.define(
     layoutChild.refresh();
     assert("layoutChild.positive === 2", layoutChild.positive === 2);
 
-    // dereference tests
+    // test dereference
     assert("layoutChild.mustBeDereferenced === 'hello world'",
            layoutChild.mustBeDereferenced === "hello world");
     layoutChild.dispose();
     assert("layoutChild.mustBeDereferenced is undefined after dispose()",
            typeof layoutChild.mustBeDereferenced == "undefined");
+
+    // Test checks
+    try
+    {
+      superinstance.running = 23;
+      assert("check 'Boolean' failed as it should", false);
+    }
+    catch(e)
+    {
+      assert("check 'Boolean' failed as it should", true);
+    }
+
+    try
+    {
+      superinstance.running = true;
+      superinstance.running = false;
+      assert("check 'Boolean' succeeded as it should", true);
+    }
+    catch(e)
+    {
+      assert("check 'Boolean' succeded as it should", false);
+    }
+
+    try
+    {
+      superinstance.jsdocProp = [ 2, 4, 6 ];
+      assert("check JSDoc failed as expected (not yet implemented)", false);
+    }
+    catch(e)
+    {
+      assert("check JSDoc failed as expected (not yet implemented)", true);
+    }
+
+    try
+    {
+      superinstance.mustBe42 = 42;
+      assert("check-string succeeded as it should", true);
+    }
+    catch(e)
+    {
+      assert("check-string succeeded as it should", false);
+    }
+
+    try
+    {
+      superinstance.mustBe42 = 43;
+      assert("check-string failed as it should", false);
+    }
+    catch(e)
+    {
+      assert("check-string failed as it should", true);
+    }
+
 
     //
     // Keep these delay tests last in the test...

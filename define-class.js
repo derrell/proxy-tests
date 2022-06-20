@@ -24,6 +24,11 @@ let qx =
         },
 
         getClass : getClass,
+        isString : isString,
+        isArray : isArray,
+        isObject : isObject,
+        isFunction : isFunction,
+        isFunctionOrAsyncFunction : isFunctionOrAsyncFunction,
 
         getDisplayName(f)
         {
@@ -73,6 +78,62 @@ let qx =
           add(key, value)
           {
             qx.core.Environment.$$environment[key] = value;
+          }
+        }
+      },
+
+      lang :
+      {
+        Type :
+        {
+          getClass: getClass,
+          isString: isString,
+          isArray: isArray,
+          isObject: isObject,
+          isFunction: isFunction,
+          isFunctionOrAsyncFunction: isFunctionOrAsyncFunction,
+
+          isRegExp(value)
+          {
+            return this.getClass(value) === "RegExp";
+          },
+
+          isNumber(value)
+          {
+            return (
+              value !== null &&
+                (this.getClass(value) === "Number" || value instanceof Number)
+            );
+          },
+
+          isBoolean(value)
+          {
+            return (
+              value !== null &&
+                (this.getClass(value) === "Boolean" ||
+                 value instanceof Boolean)
+            );
+          },
+
+          isDate(value)
+          {
+            return (
+              value !== null &&
+                (this.getClass(value) === "Date" || value instanceof Date)
+            );
+          },
+
+          isError(value)
+          {
+            return (
+              value !== null &&
+                (this.getClass(value) === "Error" || value instanceof Error)
+            );
+          },
+
+          isPromise(value)
+          {
+            return value != null && this.isFunction(value.then);
           }
         }
       }
@@ -135,6 +196,112 @@ let $$deprecatedPropKeys =
         `'deferredInit' is deprecated and ignored. ` +
         `See the new property key 'initFunction' as a likely replacement.`
     };
+
+let $$checks = new Map(
+  [
+    [
+      "Boolean",
+      v => qx.lang.Type.isBoolean(v)
+    ],
+    [
+      "String",
+      v => qx.lang.Type.isString(v)
+    ],
+    [
+      "Number",
+      v => qx.lang.Type.isNumber(v) && isFinite(v)
+    ],
+    [
+      "Integer",
+      v => qx.lang.Type.isNumber(v) && isFinite(v) && v % 1 === 0
+    ],
+    [
+      "PositiveNumber",
+      v => qx.lang.Type.isNumber(v) && isFinite(v) && v >= 0
+    ],
+    [
+      "PositiveInteger",
+      v => qx.lang.Type.isNumber(v ) && isFinite() && v % 1 === 0 && v >= 0
+    ],
+    [
+      "Error",
+      v => v instanceof Error
+    ],
+    [
+      "RegExp",
+      v => v instanceof RegExp
+    ],
+    [
+      "Object",
+      v => v !== null && (qx.lang.Type.isObject(v) || typeof v === "object")
+    ],
+    [
+      "Array",
+      v => qx.lang.Type.isArray(v)
+    ],
+    [
+      "Map",
+      v => qx.lang.Type.isObject(v)
+    ],
+    [
+      "Function",
+      v => qx.lang.Type.isFunction(v)
+    ],
+    [
+      "Date",
+      v => v instanceof Date
+    ],
+    [
+      "Node",
+      v => v !== null && v.nodeType !== undefined
+    ],
+    [
+      "Element",
+      v => v !== null && v.nodeType === 1 && v.attributes
+    ],
+    [
+      "Document",
+      v => v !== null && v.nodeType === 9 && v.documentElement
+    ],
+    [
+      "Window",
+      v => v !== null && v.document
+    ],
+    [
+      "Event",
+      v => v !== null && v.type !== undefined
+    ],
+    [
+      "Class",
+      v => v !== null && v.$$type === "Class"
+    ],
+    [
+      "Mixin",
+      v => v !== null && v.$$type === "Mixin"
+    ],
+    [
+      "Interace",
+      v => v !== null && v.$$type === "Interface"
+    ],
+    [
+      "Theme",
+      v => v !== null && v.$$type === "Theme"
+    ],
+    [
+      "Color",
+      v => (qx.lang.Type.isString(v) &&
+           qx.util.ColorUtil.isValidPropertyValue(v))
+    ],
+    [
+      "Decorator",
+      v => (v !== null &&
+           qx.theme.manager.Decoration.getInstance().isValidPropertyValue(v))
+    ],
+    [
+      "Font",
+      v => v !== null && qx.theme.manager.Font.getInstance().isDynamic(v)
+    ]
+  ]);
 
 let isEqual = (a, b) => a === b;
 
@@ -883,7 +1050,23 @@ function define(className, config)
     {
       let           property = properties[prop];
 
-      if (property.dereference)
+      // If this property is specified to be dereference upon dispose,
+      // or its check indicates that it's a type that requires being
+      // dereferenced...
+      if (property.dereference ||
+          [
+            // Perform magic. These types (as indicated by their
+            // `check`, need to be dereferenced even if `dereference`
+            // isn't specified for the propery. Or rather, in old IE
+            // days, they needed to be explicitly removed from the
+            // object. They may not need to be any longer, but it
+            // doesn't hurt terribly to continue to do so.
+            "Node",
+            "Element",
+            "Document",
+            "Window",
+            "Event",
+          ].includes(property.config))
       {
         // If the storage mechanism has a dereference method, let it
         // do its thing
@@ -1140,8 +1323,85 @@ function _extend(className, config)
                 // Does it have a check to be done?
                 if (property.check)
                 {
-                  console.log(
-                    `Would be checking ${value} against ${property.check}`);
+                  if ($$checks.has(property.check))
+                  {
+                    if (! $$checks.get(property.check)(value))
+                    {
+                      throw new Error(
+                        `${prop}: ` +
+                          `Expected value to be of type ${property.check}; ` +
+                          `value=${value}`);
+                    }
+                  }
+                  else if (typeof property.check == "function" &&
+                           ! property.check(value))
+                  {
+                    throw new Error(
+                      `${prop}: ` +
+                        `Check function indicates wrong type value; ` +
+                        `value=${value}`);
+                  }
+                  else if (typeof property.check == "string")
+                  {
+                    // First try to parse the check string as JSDoc
+                    let             bJSDocParsed = false;
+                    try
+                    {
+                      const           { parse } = require("jsdoctypeparser");
+                      const           ast = parse(property.check);
+
+                      // Temporarily, while we don't yet support
+                      // checks based on the jsdoc AST, flag whether
+                      // we successfully parsed the type. If so, we'll
+                      // stop the check when the error is thrown by
+                      // __checkValueAgainstJSdocAST(); If not, we
+                      // want to fall through to additional checks.
+                      bJSDocParsed = true;
+                      __checkValueAgainstJSdocAST(
+                        prop, value, ast, property.check);
+                    }
+                    catch(e)
+                    {
+                      // If we successfully parsed, rethrow the check error
+                      if (bJSDocParsed)
+                      {
+                        throw e;
+                      }
+
+                      // Couldn't parse JSDoc so the check string is
+                      // not a JSDoc one. Fall through to next
+                      // possible use of the check string.
+                      //
+                      // FALL THROUGH
+                    }
+
+                    // JSDoc parsing failed, so try executing the
+                    // string as a function
+                    let             fCheck;
+                    try
+                    {
+                      fCheck = new Function(
+                        "value", `return (${property.check});`);
+                    }
+                    catch(e)
+                    {
+                      throw new Error(
+                        `${prop}: ` +
+                          `Error running check: ${property.check}`, e);
+                    }
+
+                    if (! fCheck(value))
+                    {
+                      throw new Error(
+                        `${prop}: ` +
+                          `Check code indicates wrong type value; ` +
+                          `value=${value}`);
+                    }
+                  }
+                  else
+                  {
+                    throw new Error(`${prop}: Unrecognized check type`);
+                  }
                 }
 
                 // Does it have a validation function?
@@ -1327,6 +1587,94 @@ function getClass(value)
 }
 
 /**
+ * Whether the value is a string.
+ *
+ * @param value {var} Value to check.
+ * @return {Boolean} Whether the value is a string.
+ */
+function isString(value) {
+  // Added "value !== null" because IE throws an exception "Object expected"
+  // by executing "value instanceof String" if value is a DOM element that
+  // doesn't exist. It seems that there is an internal difference between a
+  // JavaScript null and a null returned from calling DOM.
+  // e.q. by document.getElementById("ReturnedNull").
+  return (
+    value !== null &&
+    (typeof value === "string" ||
+      qx.Bootstrap.getClass(value) === "String" ||
+      value instanceof String ||
+      (!!value && !!value.$$isString))
+  );
+}
+
+/**
+ * Whether the value is an array.
+ *
+ * @param value {var} Value to check.
+ * @return {Boolean} Whether the value is an array.
+ */
+function isArray(value)
+{
+  // Added "value !== null" because IE throws an exception "Object expected"
+  // by executing "value instanceof Array" if value is a DOM element that
+  // doesn't exist. It seems that there is an internal difference between a
+  // JavaScript null and a null returned from calling DOM.
+  // e.q. by document.getElementById("ReturnedNull").
+  return (
+    value !== null &&
+    (value instanceof Array ||
+      (value &&
+        qx.data &&
+        qx.data.IListData &&
+        qx.util.OOUtil.hasInterface(
+          value.constructor,
+          qx.data.IListData
+        )) ||
+      qx.Bootstrap.getClass(value) === "Array" ||
+      (!!value && !!value.$$isArray))
+  );
+}
+
+/**
+ * Whether the value is an object. Note that built-in types like Window are
+ * not reported to be objects.
+ *
+ * @param value {var} Value to check.
+ * @return {Boolean} Whether the value is an object.
+ */
+function isObject(value)
+{
+  return (
+    value !== undefined &&
+    value !== null &&
+    qx.Bootstrap.getClass(value) === "Object"
+  );
+}
+
+/**
+ * Whether the value is a function.
+ *
+ * @param value {var} Value to check.
+ * @return {Boolean} Whether the value is a function.
+ */
+function isFunction(value)
+{
+  return qx.Bootstrap.getClass(value) === "Function";
+}
+
+/**
+ * Whether the value is a function or an async function.
+ *
+ * @param value {var} Value to check.
+ * @return {Boolean} Whether the value is a function.
+ */
+function isFunctionOrAsyncFunction(value)
+{
+  var name = qx.Bootstrap.getClass(value);
+  return name === "Function" || name === "AsyncFunction";
+}
+
+/**
  * Attach events to the class
  *
  * @param clazz {Class} class to add the events to
@@ -1483,6 +1831,17 @@ function __validatePropertyDefinitions(className, config)
         }
       });
   }
+}
+
+function __checkValueAgainstJSdocAST(prop, value, ast, check)
+{
+  console.log(
+    `JSDoc AST of ${check}:\n` + JSON.stringify(ast, null, "  "));
+
+  // TODO: implement this
+  throw new Error(
+    `${prop}: ` +
+      `JSDoc type checking is not yet implemented`);
 }
 
 
