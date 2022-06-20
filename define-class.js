@@ -136,7 +136,9 @@ let qx =
             return value != null && this.isFunction(value.then);
           }
         }
-      }
+      },
+
+      Promise : Promise
     };
 
 /**
@@ -977,7 +979,7 @@ function define(className, config)
             // // If the value hasn't changed since last time, do nothing
             // if (property.isEqual(value, old))
             // {
-            //   return Promise.resolve(undefined);
+            //   return qx.Promise.resolve(undefined);
             // }
 
             this[key] = value;

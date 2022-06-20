@@ -223,7 +223,7 @@ qx.Class.define(
         async : true,
         get : async () =>
         {
-          return new Promise(
+          return new qx.Promise(
             (resolve, reject) =>
             {
               setTimeout(() => { resolve(true); }, 2000);
@@ -231,7 +231,7 @@ qx.Class.define(
         },
         apply : async () =>
         {
-          return new Promise(
+          return new qx.Promise(
             (resolve, reject) =>
             {
               setTimeout(() => { resolve(true); }, 2000);
