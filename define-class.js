@@ -607,6 +607,7 @@ function define(className, config)
         {
           init(propertyName, property)
           {
+            // Create the storage for this property's current value
             Object.defineProperty(
               clazz.prototype,
               key,
@@ -625,11 +626,6 @@ function define(className, config)
 
           set(prop, value)
           {
-            if (property.readonly)
-            {
-              throw new Error(
-                `Attempt to set value of readonly property ${prop}`);
-            }
             this[prop] = value;
           },
 
@@ -871,11 +867,6 @@ function define(className, config)
         {
           value        : function()
           {
-            // Allow storing init value even if readonly
-            let             readonly = property.readonly;
-
-            property.readonly = false;
-
             if (property.initFunction)
             {
               storage.set.call(
@@ -885,9 +876,6 @@ function define(className, config)
             {
               storage.set.call(this, key, property.init);
             }
-
-            // Reset the original value of readonly
-            property.readonly = readonly;
           },
           writable     : false,
           configurable : false,
@@ -1023,6 +1011,11 @@ function define(className, config)
               if (property.isEqual(value, old))
               {
                 // Save the new property value. This is before any async calls
+                if (property.readonly)
+                {
+                  throw new Error(
+                    `Attempt to set value of readonly property ${key}`);
+                }
                 storage.set.call(this, key, value);
 
                 await apply.call(this, value, old, key);
@@ -1515,14 +1508,12 @@ function _extend(className, config)
                       `{ value: ${value}, old: ${old} }`);
                 }
 
-                // Set the (possibly updated) value
+                // Save the (possibly updated) value
                 if (property.readonly)
                 {
                   throw new Error(
                     `Attempt to set value of readonly property ${prop}`);
                 }
-
-                // Save the value
                 storage.set.call(obj, prop, value);
 
                 // Also specify that this was a user-specified value
