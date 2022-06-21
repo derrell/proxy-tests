@@ -1002,12 +1002,12 @@ function define(className, config)
             {
               let      old;
 
-              value = Promise.resolve(value);
+              value = qx.Promise.resolve(value);
 
               // Obtain the old value, via its async request
               old = await this[`get${propertyFirstUp}Async`]();
 
-              // If the value has changed since last time, do nothing
+              // If the value has changed since last time...
               if (property.isEqual(value, old))
               {
                 // Save the new property value. This is before any async calls
@@ -1018,15 +1018,16 @@ function define(className, config)
                 }
                 storage.set.call(this, key, value);
 
+                // Call the apply function
                 await apply.call(this, value, old, key);
 
-                // Now that we have the async result, fire the change event
+                // Now that apply has resolved, fire the change event
                 console.log(
                   `Would generate event type ${property.event} ` +
                     `{ value: ${value}, old: ${old} } (async event)`);
               }
 
-              // If we ar ethe last promise, dispose of the promise
+              // If we are the last promise, dispose of the promise
               if (activePromise === this[activePromiseProp])
               {
                 this[activePromiseProp] = null;
