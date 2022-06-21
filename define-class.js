@@ -969,7 +969,7 @@ function define(className, config)
           {
             return this[`$$activePromise${propertyFirstUp}`] !== null;
           },
-          writable     : true,
+          writable     : false,
           configurable : false,
           enumerable   : false
         });
