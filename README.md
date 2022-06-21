@@ -72,6 +72,14 @@ The test program is `test.js`.
 # John's requested new Property features currently implemented
 - [x] native properties
 - [x] properties are first-class objects
+  Additionally, there is now a qx.core.PropertyDescriptorRegistry
+  class wich is automatically instantiated by qx.Class.define when a
+  class is defined. It stores the definition of each property as well
+  as each of the properties' functions. Retrieving a property's
+  property descriptor binds the functions to the object on which the
+  retrieval was made, so that they can be used from the retrieved
+  property descriptor to get information about, or alter, that
+  object's property.
 - [x] readonly properties. `init` and `initFunction`, and therefore
   the`initProperty()` methods, intentionally ignore `readonly` so that
   the property's value can be set. This is true even if manually
