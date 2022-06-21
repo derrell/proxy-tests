@@ -1,4 +1,4 @@
-let qx =
+qx =
     {
       Bootstrap :
       {
@@ -305,6 +305,244 @@ let $$checks = new Map(
     ]
   ]);
 
+//
+// Factories for property methods
+//
+let propertyMethodFactory =
+    {
+      get : function(prop, property)
+      {
+        return function()
+        {
+          return this[prop];
+        };
+      },
+
+      set : function(prop, property)
+      {
+        return function(value)
+        {
+          this[prop] = value;
+          return value;
+        };
+      },
+
+      reset : function(prop, property)
+      {
+        return function(value)
+        {
+          // Get the current inherited and init values
+          let             inheritValue =
+              (property.inheritable
+               ? this[`$$inherit_${prop}`]
+               : undefined);
+          let             initValue =
+              (property.initFunction
+               ? property.initFunction.call(this)
+               : ("init" in property
+                  ? property.init
+                  : undefined));
+
+          // Unset the user value
+          this[`$$user_${prop}`] = undefined;
+
+          // Select the new value
+          this[prop] = inheritValue !== undefined ? inheritValue : initValue;
+        };
+      },
+
+      refresh : function(prop, property)
+      {
+        return function()
+        {
+          let             inheritedValue;
+          let             layoutParent;
+          let             userValue = this[`$$user_${prop}`];
+
+          // If there's a user value, it takes precedence
+          if (typeof userValue != "undefined")
+          {
+            // Use the user value as the property value
+            this[prop] = userValue;
+            return;
+          }
+
+          // If there's a layout parent and if it has a property of
+          // this name, ...
+          layoutParent =
+            (typeof this.getLayoutParent == "function"
+             ? this.getLayoutParent()
+             : undefined);
+          if (layoutParent && typeof layoutParent[prop] != "undefined")
+          {
+            // ... then retrieve its value
+            inheritedValue = layoutParent[prop];
+
+            // If we found a value to inherit...
+            if (typeof inheritedValue != "undefined")
+            {
+              // ... then save the inherited value, ...
+              this[`$$inherit_${prop}`] = inheritedValue;
+
+              // ... and also use the inherited value as the property value
+              this[prop] = inheritedValue;
+            }
+          }
+        };
+      },
+
+      setThemed : function(prop, property)
+      {
+        return function(value)
+        {
+          // Get the current user-specified value
+          let             userValue = this[`$$user_${prop}`];
+
+          // Save the provided themed value
+          this[`$$theme_${prop}`] = value;
+
+          // User value has precedence, so if it's not set, use theme value
+          if (userValue === undefined)
+          {
+            this[prop] = value;
+          }
+        };
+      },
+
+      resetThemed : function(prop, property)
+      {
+        return function(value)
+        {
+          // Get the current user-specified value
+          let             userValue = this[`$$user_${prop}`];
+          let             initValue =
+              (property.initFunction
+               ? property.initFunction.call(this)
+               : ("init" in property
+                  ? property.init
+                  : undefined));
+
+          // Unset the themed value
+          this[`$$theme_${prop}`] = undefined;
+
+          // Select the new value
+          this[prop] = userValue !== undefined ? userValue : initValue;
+        };
+      },
+
+      init : function(prop, property)
+      {
+        return function()
+        {
+          if (property.initFunction)
+          {
+            property.storage.set.call(
+              this, prop, property.initFunction.call(this, prop));
+          }
+          else if (property.init)
+          {
+            property.storage.set.call(this, prop, property.init);
+          }
+        };
+      },
+
+      is : function(prop, property)
+      {
+        return function()
+        {
+          return !! this[prop];
+        };
+      },
+
+      toggle : function(prop, property)
+      {
+        return function()
+        {
+          this[prop] = ! this[prop];
+        };
+      },
+
+      isAsyncSetActive : function(prop, property)
+      {
+        let           propertyFirstUp = prop[0].toUpperCase() + prop.substr(1);
+
+        return function()
+        {
+          return this[`$$activePromise${propertyFirstUp}`] !== null;
+        };
+      },
+
+      getAsync : function(prop, property, get)
+      {
+        return async function()
+        {
+          return get.call(this);
+        };
+      },
+
+      setAsync : function(prop, property, apply)
+      {
+        return async function(value)
+        {
+          let        activePromise;
+          let        propertyFirstUp = prop[0].toUpperCase() + prop.substr(1);
+          let        activePromiseProp = `$$activePromise${propertyFirstUp}`;
+
+          const           setImpl = async function()
+          {
+            let      old;
+
+            value = qx.Promise.resolve(value);
+
+            // Obtain the old value, via its async request
+            old = await this[`get${propertyFirstUp}Async`]();
+
+            // If the value has changed since last time...
+            if (property.isEqual(value, old))
+            {
+              // Save the new property value. This is before any async calls
+              if (property.readonly)
+              {
+                throw new Error(
+                  `Attempt to set value of readonly property ${prop}`);
+              }
+              property.storage.set.call(this, prop, value);
+
+              // Call the apply function
+              await apply.call(this, value, old, prop);
+
+              // Now that apply has resolved, fire the change event
+              console.log(
+                `Would generate event type ${property.event} ` +
+                  `{ value: ${value}, old: ${old} } (async event)`);
+            }
+
+            // If we are the last promise, dispose of the promise
+            if (activePromise === this[activePromiseProp])
+            {
+              this[activePromiseProp] = null;
+            }
+          }.bind(this);
+
+          // If this property already has an active promise...
+          if (this[activePromiseProp])
+          {
+            // ... then add this request to the promise chain
+            activePromise =
+              this[activePromiseProp].then(setImpl);
+          }
+          else
+          {
+            // There are no pending requests. Begin this one right now.
+            activePromise = setImpl();
+          }
+
+          this[activePromiseProp] = activePromise;
+          return activePromise;
+        };
+      }
+    };
+
 let isEqual = (a, b) => a === b;
 
 function define(className, config)
@@ -495,6 +733,34 @@ function define(className, config)
     __attachAnno(clazz, "statics", key, config.statics["@" + key]);
   }
 
+  // Create a place to store the property descriptor registry for this class
+  Object.defineProperty(
+    clazz,
+    `$$propertyDescriptorRegistry`,
+    {
+      value        : (qx.core.PropertyDescriptorRegistry
+                      ? new qx.core.PropertyDescriptorRegistry()
+                      : undefined),
+      writable     : true,
+      configurable : false,
+      enumerable   : false
+    });
+
+  // Create a method to retrieve the property descriptor
+  Object.defineProperty(
+    clazz.prototype,
+    `getPropertyDescriptor`,
+    {
+      value        : function(prop)
+      {
+        return this.constructor.$$propertyDescriptorRegistry.get(this, prop);
+      },
+      writable     : false,
+      configurable : false,
+      enumerable   : false
+    });
+
+
   // Add a method to refresh all inheritable properties
   Object.defineProperty(
     clazz.prototype,
@@ -588,6 +854,8 @@ function define(className, config)
   let properties = config.properties || {};
   for (let key in properties)
   {
+    let             get;
+    let             apply;
     let             property = properties[key];
     let             propertyFirstUp = key[0].toUpperCase() + key.substr(1);
     let             storage;
@@ -694,232 +962,8 @@ function define(className, config)
         });
     }
 
-    // Create the legacy property getter, getPropertyName
-    Object.defineProperty(
-      clazz.prototype,
-      `get${propertyFirstUp}`,
-      {
-        value        : function()
-        {
-          return this[key];
-        },
-        writable     : false,
-        configurable : false,
-        enumerable   : false
-      });
-
-    // Create the legacy property setter, setPropertyName.
-    Object.defineProperty(
-      clazz.prototype,
-      `set${propertyFirstUp}`,
-      {
-        value        : function(value)
-        {
-          this[key] = value;
-          return value;
-        },
-        writable     : false,
-        configurable : false,
-        enumerable   : false
-      });
-
-    // Create this property's resetProperty method
-    Object.defineProperty(
-      clazz.prototype,
-      `reset${propertyFirstUp}`,
-      {
-        value        : function(value)
-        {
-          // Get the current inherited and init values
-          let             inheritValue =
-              (property.inheritable
-               ? this[`$$inherit_${key}`]
-               : undefined);
-          let             initValue =
-              (property.initFunction
-               ? property.initFunction.call(this)
-               : ("init" in property
-                  ? property.init
-                  : undefined));
-
-          // Unset the user value
-          this[`$$user_${key}`] = undefined;
-
-          // Select the new value
-          this[key] = inheritValue !== undefined ? inheritValue : initValue;
-        },
-        writable     : false,
-        configurable : false,
-        enumerable   : false
-      });
-
-    if (property.inheritable)
-    {
-      // Create this property's refreshProperty method
-      Object.defineProperty(
-        clazz.prototype,
-        `refresh${propertyFirstUp}`,
-        {
-          value        : function()
-          {
-            let             inheritedValue;
-            let             layoutParent;
-            let             userValue = this[`$$user_${key}`];
-
-            // If there's a user value, it takes precedence
-            if (typeof userValue != "undefined")
-            {
-              // Use the user value as the property value
-              this[key] = userValue;
-              return;
-            }
-
-            // If there's a layout parent and if it has a property of
-            // this name, ...
-            layoutParent =
-              (typeof this.getLayoutParent == "function"
-               ? this.getLayoutParent()
-               : undefined);
-            if (layoutParent && typeof layoutParent[key] != "undefined")
-            {
-              // ... then retrieve its value
-              inheritedValue = layoutParent[key];
-
-              // If we found a value to inherit...
-              if (typeof inheritedValue != "undefined")
-              {
-                // ... then save the inherited value, ...
-                this[`$$inherit_${key}`] = inheritedValue;
-
-                // ... and also use the inherited value as the property value
-                this[key] = inheritedValue;
-              }
-            }
-          },
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
-    if (property.themeable)
-    {
-      // Create this property's setThemedProperty method
-      Object.defineProperty(
-        clazz.prototype,
-        `setThemed${propertyFirstUp}`,
-        {
-          value        : function(value)
-          {
-            // Get the current user-specified value
-            let             userValue = this[`$$user_${key}`];
-
-            // Save the provided themed value
-            this[`$$theme_${key}`] = value;
-
-            // User value has precedence, so if it's not set, use theme value
-            if (userValue === undefined)
-            {
-              this[key] = value;
-            }
-          },
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-
-      // Create this property's resetThemedProperty method
-      Object.defineProperty(
-        clazz.prototype,
-        `resetThemed${propertyFirstUp}`,
-        {
-          value        : function(value)
-          {
-            // Get the current user-specified value
-            let             userValue = this[`$$user_${key}`];
-            let             initValue =
-                (property.initFunction
-                 ? property.initFunction.call(this)
-                 : ("init" in property
-                    ? property.init
-                    : undefined));
-
-            // Unset the themed value
-            this[`$$theme_${key}`] = undefined;
-
-            // Select the new value
-            this[key] = userValue !== undefined ? userValue : initValue;
-          },
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
-    // If there's an init or initFunction handler, ...
-    if (typeof property.init != "undefined" ||
-        typeof property.initFunction == "function")
-    {
-      // ... then create initPropertyName
-      Object.defineProperty(
-        clazz.prototype,
-        `init${propertyFirstUp}`,
-        {
-          value        : function()
-          {
-            if (property.initFunction)
-            {
-              storage.set.call(
-                this, key, property.initFunction.call(this, key));
-            }
-            else if (property.init)
-            {
-              storage.set.call(this, key, property.init);
-            }
-          },
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
-    // If this is a boolean, as indicated by check : "Boolean" ...
-    if (typeof property.check == "string" &&
-        property.check == "Boolean")
-    {
-      // ... then create isPropertyName and togglePropertyName
-      Object.defineProperty(
-        clazz.prototype,
-        `is${propertyFirstUp}`,
-        {
-          value        : function()
-          {
-            return !! this[key];
-          },
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-
-      Object.defineProperty(
-        clazz.prototype,
-        `toggle${propertyFirstUp}`,
-        {
-          value        : function()
-          {
-            this[key] = ! this[key];
-          },
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
     if (property.async)
     {
-      let             get;
-      let             apply;
-
       // Obtain the required get function
       if (typeof property.get == "function")
       {
@@ -947,6 +991,175 @@ function define(className, config)
           `${key}: ` +
             `async property requires that both 'get' and 'apply' be provided`);
       }
+    }
+
+    // Call the factories to generate each of the property functions
+    // for the current property of the class
+    let propertyDescriptor =
+        {
+          // The complete property definition
+          definition : Object.assign({}, property),
+
+          // Property methods
+          get : propertyMethodFactory.get(key, property),
+          set : propertyMethodFactory.set(key, property),
+          reset : propertyMethodFactory.reset(key, property),
+          refresh : (property.inheritable
+                     ? propertyMethodFactory.refresh(key, property)
+                     : undefined),
+          setThemed : (property.themeable
+                       ? propertyMethodFactory.setThemed(key, property)
+                       : undefined),
+          resetThemed : (property.themeable
+                         ? propertyMethodFactory.resetThemed(key, property)
+                         : undefined),
+          init : ((typeof property.init != "undefined" ||
+                   typeof property.initFunction == "function")
+                  ? propertyMethodFactory.init(key, property)
+                  : undefined),
+          is : (property.check == "Boolean"
+                ? propertyMethodFactory.is(key, property)
+                : undefined),
+          toggle : (property.check == "Boolean"
+                    ? propertyMethodFactory.toggle(key, property)
+                    : undefined),
+          isAsyncSetActive : (property.async
+                              ? propertyMethodFactory.isAsyncSetActive(key, property)
+                              : undefined),
+          getAsync : (property.async
+                      ? propertyMethodFactory.getAsync(key, property, get)
+                      : undefined),
+          setAsync : (property.async
+                      ? propertyMethodFactory.setAsync(key, property, apply)
+                      : undefined)
+        };
+
+    // Freeze the property descriptor so user doesn't muck it up
+    Object.freeze(propertyDescriptor);
+
+    // Store it in the registry
+    if (clazz.$$propertyDescriptorRegistry)
+    {
+      clazz.$$propertyDescriptorRegistry.register(key, propertyDescriptor);
+    }
+
+    // Create the legacy property getter, getPropertyName
+    Object.defineProperty(
+      clazz.prototype,
+      `get${propertyFirstUp}`,
+      {
+        value        : propertyDescriptor.get,
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
+    // Create the legacy property setter, setPropertyName.
+    Object.defineProperty(
+      clazz.prototype,
+      `set${propertyFirstUp}`,
+      {
+        value        : propertyDescriptor.set,
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
+    // Create this property's resetProperty method
+    Object.defineProperty(
+      clazz.prototype,
+      `reset${propertyFirstUp}`,
+      {
+        value        : propertyDescriptor.reset,
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
+    if (property.inheritable)
+    {
+      // Create this property's refreshProperty method
+      Object.defineProperty(
+        clazz.prototype,
+        `refresh${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.refresh,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    if (property.themeable)
+    {
+      // Create this property's setThemedProperty method
+      Object.defineProperty(
+        clazz.prototype,
+        `setThemed${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.setThemed,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+
+      // Create this property's resetThemedProperty method
+      Object.defineProperty(
+        clazz.prototype,
+        `resetThemed${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.resetThemed,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    // If there's an init or initFunction handler, ...
+    if (typeof property.init != "undefined" ||
+        typeof property.initFunction == "function")
+    {
+      // ... then create initPropertyName
+      Object.defineProperty(
+        clazz.prototype,
+        `init${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.init,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    // If this is a boolean, as indicated by check : "Boolean" ...
+    if (property.check == "Boolean")
+    {
+      // ... then create isPropertyName and togglePropertyName
+      Object.defineProperty(
+        clazz.prototype,
+        `is${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.is,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+
+      Object.defineProperty(
+        clazz.prototype,
+        `toggle${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.toggle,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    if (property.async)
+    {
+      let             get;
+      let             apply;
 
       // Create a place to store the current promise for the async setter
       Object.defineProperty(
@@ -965,10 +1178,7 @@ function define(className, config)
         clazz.prototype,
         `isAsyncSetActive${propertyFirstUp}`,
         {
-          value        : function()
-          {
-            return this[`$$activePromise${propertyFirstUp}`] !== null;
-          },
+          value        : propertyDescriptor.isAsyncSetActive,
           writable     : false,
           configurable : false,
           enumerable   : false
@@ -979,10 +1189,7 @@ function define(className, config)
         clazz.prototype,
         `get${propertyFirstUp}Async`,
         {
-          value        : async function()
-          {
-            return get.call(this);
-          },
+          value        : propertyDescriptor.getAsync,
           writable     : false,
           configurable : false,
           enumerable   : false
@@ -993,63 +1200,7 @@ function define(className, config)
         clazz.prototype,
         `set${propertyFirstUp}Async`,
         {
-          value        : async function(value)
-          {
-            let        activePromise;
-            let        activePromiseProp = `$$activePromise${propertyFirstUp}`;
-
-            const           setImpl = async function()
-            {
-              let      old;
-
-              value = qx.Promise.resolve(value);
-
-              // Obtain the old value, via its async request
-              old = await this[`get${propertyFirstUp}Async`]();
-
-              // If the value has changed since last time...
-              if (property.isEqual(value, old))
-              {
-                // Save the new property value. This is before any async calls
-                if (property.readonly)
-                {
-                  throw new Error(
-                    `Attempt to set value of readonly property ${key}`);
-                }
-                storage.set.call(this, key, value);
-
-                // Call the apply function
-                await apply.call(this, value, old, key);
-
-                // Now that apply has resolved, fire the change event
-                console.log(
-                  `Would generate event type ${property.event} ` +
-                    `{ value: ${value}, old: ${old} } (async event)`);
-              }
-
-              // If we are the last promise, dispose of the promise
-              if (activePromise === this[activePromiseProp])
-              {
-                this[activePromiseProp] = null;
-              }
-            }.bind(this);
-
-            // If this property already has an active promise...
-            if (this[activePromiseProp])
-            {
-              // ... then add this request to the promise chain
-              activePromise =
-                this[activePromiseProp].then(setImpl);
-            }
-            else
-            {
-              // There are no pending requests. Begin this one right now.
-              activePromise = setImpl();
-            }
-
-            this[activePromiseProp] = activePromise;
-            return activePromise;
-          },
+          value        : propertyDescriptor.setAsync,
           writable     : false,
           configurable : false,
           enumerable   : false
@@ -1307,6 +1458,7 @@ function _extend(className, config)
           }
         }
 
+        // Create the proxy handler
         handler =
           {
             get : function(obj, prop)
@@ -1530,11 +1682,39 @@ function _extend(className, config)
                 return true;
               }
 
+              // Require that members be declared in the "members"
+              // section of the configuration passed to qx.Class.define
+              if (! (prop in obj))
+              {
+                // temporarily just display an error but don't throw
+                if (false)
+                {
+                  throw new Error(
+                    `In class '${obj.constructor.classname}', ` +
+                      `an attempt was made to  write to '${prop}' ` +
+                      "which is not declared in the 'members' section " +
+                      "of the configuration passed to qx.Class.define");
+                }
+                else
+                {
+                  console.error(
+                    "ERROR: " +
+                    `In class '${obj.constructor.classname}', ` +
+                      `an attempt was made to  write to '${prop}' ` +
+                      "which is not declared in the 'members' section " +
+                      "of the configuration passed to qx.Class.define. " +
+                      "Dynamically adding members is deprecated. " +
+                      "This will be a fatal error in an upcoming release " +
+                      "of qooxdoo.");
+                }
+              }
+
               storage.set.call(obj, prop, value);
               return true;
             }
           };
 
+        // Create the instance proxy which manages properties, etc.
         proxy = new Proxy(obj, handler);
 
         // Call any initFunctions defined for properties of this class
@@ -1920,3 +2100,5 @@ function assert(message, assertionSuccess)
 }
 
 module.exports = { qx, assert };
+
+require("./PropertyDescriptorRegistry.js");

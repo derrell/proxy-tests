@@ -835,6 +835,23 @@ qx.Class.define(
       assert("check-string failed as it should", true);
     }
 
+    // Test that instance is sealed against automatic member creation
+    try
+    {
+      superinstance.notDeclaredInMembers = 1;
+      assert("additional member creation is prevented", false);
+    }
+    catch(e)
+    {
+      assert("additional member creation is prevented", true);
+    }
+
+    let propertyDescriptorPositive =
+        superinstance.getPropertyDescriptor("positive");
+    console.log("Property descriptor=", propertyDescriptorPositive);
+    superinstance.positive = 1;
+    propertyDescriptorPositive.set(2);
+    assert("property descriptor set works", superinstance.positive === 2);
 
     //
     // Keep these delay tests last in the test...
