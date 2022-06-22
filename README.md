@@ -94,7 +94,8 @@ The test program is `test.js`.
   Implemented parsing of JSDoc type strings (but then failing the
   check if it parsed because nothing yet validates the value against
   the AST
-- [ ] immutability and mutation detection
+- [ ] immutability
+- [x] mutation detection
 - [ ] fast property definition
 - [ ] integration with references
   - [x] `initFunction` (in lieu of `init`). Added to a property

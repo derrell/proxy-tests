@@ -18,9 +18,6 @@
 
 const { qx } = require("./define-class");
 
-/**
- * @internal
- */
 qx.Class.define(
   "qx.core.PropertyDescriptorRegistry",
   {
@@ -30,6 +27,76 @@ qx.Class.define(
     {
       // Initialize the registry of property descriptors
       this.__registry = {};
+    },
+
+    statics :
+    {
+      /**
+       * A global registry of property descriptors which can be queried by
+       * class name. Each key is a fully qualified class name. The value is
+       * a map keyed by property name whose value is that class' property's
+       * property descriptor.
+       */
+      __globalRegistry : {},
+
+      getRegistry : function()
+      {
+        return qx.core.PropertyDescriptorRegistry.__globalRegistry;
+      },
+
+      /**
+       * Obtain all properties' property descriptors for the specified class
+       *
+       * @param className {String}
+       *   The name of the class for which all properties' property
+       *   descriptors are requested
+       *
+       * @return {Object}
+       *   A map where Each key is a fully qualified class name. The value is
+       *   a map keyed by property name whose value is that class' property's
+       *   property descriptor.
+       *
+       *   Note that unlike the `get` member method, the returned property
+       *   descriptors do not have their functions bound to any particular
+       *   object.
+       */
+      getClassProperties : function(className)
+      {
+        return qx.core.PropertyDescriptorRegistry.__globalRegistry[className];
+      },
+
+      /**
+       * Obtain a single property's property descriptors from a specified
+       * class
+       *
+       * @param className {String}
+       *   The name of the class for which all properties' property
+       *   descriptors are requested
+       *
+       * @param propertyName {String}
+       *   The name of the property in the specified class, for which property
+       *   descriptors are requested
+       *
+       * @return {Object}
+       *   A property descriptor containing keys `definition`, `get`, `set`,
+       *   etc., as described in #__registry
+       *
+       *   Note that unlike the `get` member method, the returned property
+       *   descriptor does not have its functions bound to any particular
+       *   object.
+       */
+      getClassProperty :function(className, propertyName)
+      {
+        const           globalRegistry =
+              qx.core.PropertyDescriptorRegistry.__globalRegistry;
+
+        if (! globalRegistry[className])
+        {
+          return undefined;
+        }
+
+        return globalRegistry[className][propertyName];
+      }
     },
 
     members :
@@ -68,18 +135,49 @@ qx.Class.define(
       /**
        * Register a property descriptor
        *
+       * @param className {String}
+       *   The name of the class that the property belongs to
+       *
        * @param propertyName {String}
        *   The name of the property to which the property descriptor applies
        *
        * @param propertyDescriptor {Object}
        *   @see #__registry for the layout of a property descriptor
        */
-      register : function(propertyName, propertyDescriptor)
+      register : function(className, propertyName, propertyDescriptor)
       {
-        // Save it to the registry.
+        let             globalRegistry =
+            qx.core.PropertyDescriptorRegistry.__globalRegistry;
+
+        // Save it to the local registry.
         this.__registry[propertyName] = propertyDescriptor;
+
+        // Also add it to the gloal registry
+        if (! (className in globalRegistry))
+        {
+          globalRegistry[className] = {};
+        }
+
+        globalRegistry[className][propertyName] = propertyDescriptor;
       },
 
+      /**
+       * Obtain a property's property descriptor, and bind the functions
+       * within that descriptor to a specified object.
+       *
+       * @param context {Object}
+       *   The object to which the functions in the property descriptor are to
+       *   be bound
+       *
+       * @param propertyName {String}
+       *   The name of the property in the specified class, for which property
+       *   descriptors are requested
+       *
+       * @return {Object}
+       *   A property descriptor containing keys `definition`, `get`, `set`,
+       *   etc., as described in #__registry. All functions within the
+       *   property descriptor are bound to the specified `context` object.
+       */
       get : function(context, propertyName)
       {
         let       propertyDescriptor = this.__registry[propertyName];

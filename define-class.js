@@ -746,7 +746,7 @@ function define(className, config)
       enumerable   : false
     });
 
-  // Create a method to retrieve the property descriptor
+  // Create a method to retrieve a property descriptor
   Object.defineProperty(
     clazz.prototype,
     `getPropertyDescriptor`,
@@ -1040,7 +1040,8 @@ function define(className, config)
     // Store it in the registry
     if (clazz.$$propertyDescriptorRegistry)
     {
-      clazz.$$propertyDescriptorRegistry.register(key, propertyDescriptor);
+      clazz.$$propertyDescriptorRegistry.register(
+        className, key, propertyDescriptor);
     }
 
     // Create the legacy property getter, getPropertyName
@@ -1376,6 +1377,9 @@ function _extend(className, config)
 
   // Allow easily identifying this class
   qx.Bootstrap.setDisplayName(subclass, className);
+
+  // This is a class
+  subclass.$$type = "Class";
 
   // Provide access to the superclass for base calls
   subclass.base = superclass;
