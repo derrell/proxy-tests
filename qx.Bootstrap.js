@@ -39,6 +39,7 @@ qx =
       isFunction,
       isFunctionOrAsyncFunction,
       isQxCoreObject,
+      firstUp,
 
       /**
        * Mapping from JavaScript string representation of objects to names
@@ -416,7 +417,7 @@ let propertyMethodFactory =
 
       isAsyncSetActive : function(prop, property)
       {
-        let           propertyFirstUp = prop[0].toUpperCase() + prop.substr(1);
+        let           propertyFirstUp = qx.Bootstrap.firstUp(prop);
 
         return function()
         {
@@ -437,7 +438,7 @@ let propertyMethodFactory =
         return async function(value)
         {
           let        activePromise;
-          let        propertyFirstUp = prop[0].toUpperCase() + prop.substr(1);
+          let        propertyFirstUp = qx.Bootstrap.firstUp(prop);
           let        activePromiseProp = `$$activePromise${propertyFirstUp}`;
 
           const           setImpl = async function()
@@ -491,6 +492,96 @@ let propertyMethodFactory =
 
           this[activePromiseProp] = activePromise;
           return activePromise;
+        };
+      },
+
+      groupSet : function(prop, property)
+      {
+        return function(args)
+        {
+          // We can have received separate arguments, or a single
+          // array of arguments. Convert the former to the latter if
+          // necessary. Make a copy, in any case, because we might
+          // muck with the array.
+          args = (args instanceof Array
+                  ? args.concat()
+                  : qx.lang.Array.fromArguments(args));
+
+          for (let i = 0;
+               i < property.group.length && args.length > 0;
+               i++)
+          {
+            // Get the next value to set
+            let             value = args.shift();
+
+            // Set the next property in the group
+            this[property.group[i]] = value;
+
+            // If we're in shorthand mode, we may reuse that value. Put it
+            // back at the end of the argument list.
+            if (property.mode == "shortcut")
+            {
+              args.push(value);
+            }
+          }
+        };
+      },
+
+      groupReset : function(prop, property)
+      {
+        return function()
+        {
+          for (let i = 0; i < property.group.length; i++)
+          {
+            let propertyFirstUp = qx.Bootstrap.firstUp(property.group[i]);
+
+            // Reset the property
+            this[`reset${propertyFirstUp}`]();
+          }
+        };
+      },
+
+      groupSetThemed : function(prop, property)
+      {
+        return function(args)
+        {
+          // We can have received separate arguments, or a single
+          // array of arguments. Convert the former to the latter if
+          // necessary. Make a copy, in any case, because we might
+          // muck with the array.
+          args = (args instanceof Array
+                  ? args.concat()
+                  : qx.lang.Array.fromArguments(args));
+
+          for (let i = 0;
+               i < property.group.length && args.length > 0;
+               i++)
+          {
+            // Get the next value to set
+            let    value = args.shift();
+            let    propertyFirstUp = qx.Bootstrap.firstUp(property.group[i]);
+
+            // Set the next property in the group
+            this[`setThemed${propertyFirstUp}`](value);
+
+            // If we're in shorthand mode, we may reuse that value. Put it
+            // back at the end of the argument list.
+            args.push(value);
+          }
+        };
+      },
+
+      groupResetThemed : function(prop, property)
+      {
+        return function()
+        {
+          for (let i = 0; i < property.group.length; i++)
+          {
+            let propertyFirstUp = qx.Bootstrap.firstUp(property.group[i]);
+
+            // Reset the property
+            this[`resetThemed${propertyFirstUp}`]();
+          }
         };
       }
     };
@@ -740,8 +831,7 @@ function define(className, config)
 
           if (property.inheritable)
           {
-            let             propertyFirstUp =
-                prop[0].toUpperCase() + prop.substr(1);
+            let           propertyFirstUp = qx.Bootstrap.firstUp(prop);
 
             // Call this property's refresh method
             this[`refresh${propertyFirstUp}`]();
@@ -808,13 +898,22 @@ function define(className, config)
 
   // Add properties
   let properties = config.properties || {};
+  let groupProperties = {};
   for (let key in properties)
   {
     let             get;
     let             apply;
     let             property = properties[key];
-    let             propertyFirstUp = key[0].toUpperCase() + key.substr(1);
+    let             propertyFirstUp = qx.Bootstrap.firstUp(key);
     let             storage;
+
+    // Handle group properties last so we can ensure group member
+    // properties exist before the group is created
+    if (property.group)
+    {
+      groupProperties[key] = properties[key];
+      continue;
+    }
 
     // If there's no comparison function specified for this property...
     if (! property.isEqual)
@@ -960,35 +1059,58 @@ function define(className, config)
           get : propertyMethodFactory.get(key, property),
           set : propertyMethodFactory.set(key, property),
           reset : propertyMethodFactory.reset(key, property),
-          refresh : (property.inheritable
-                     ? propertyMethodFactory.refresh(key, property)
-                     : undefined),
-          setThemed : (property.themeable
-                       ? propertyMethodFactory.setThemed(key, property)
-                       : undefined),
-          resetThemed : (property.themeable
-                         ? propertyMethodFactory.resetThemed(key, property)
-                         : undefined),
-          init : ((typeof property.init != "undefined" ||
-                   typeof property.initFunction == "function")
-                  ? propertyMethodFactory.init(key, property)
-                  : undefined),
-          is : (property.check == "Boolean"
-                ? propertyMethodFactory.is(key, property)
-                : undefined),
-          toggle : (property.check == "Boolean"
-                    ? propertyMethodFactory.toggle(key, property)
-                    : undefined),
-          isAsyncSetActive : (property.async
-                              ? propertyMethodFactory.isAsyncSetActive(key, property)
-                              : undefined),
-          getAsync : (property.async
-                      ? propertyMethodFactory.getAsync(key, property, get)
-                      : undefined),
-          setAsync : (property.async
-                      ? propertyMethodFactory.setAsync(key, property, apply)
-                      : undefined)
         };
+
+    if (property.inheritable)
+    {
+      Object.assign(
+        propertyDescriptor,
+        {
+          refresh : propertyMethodFactory.refresh(key, property)
+        });
+    }
+
+    if (property.themeable)
+    {
+      Object.assign(
+        propertyDescriptor, 
+        {
+          setThemed : propertyMethodFactory.setThemed(key, property),
+          resetThemed : propertyMethodFactory.resetThemed(key, property)
+        });
+    }
+
+    if (typeof property.init != "undefined" ||
+        typeof property.initFunction == "function")
+    {
+      Object.assign(
+        propertyDescriptor,
+        {
+          init : propertyMethodFactory.init(key, property)
+        });
+    }
+
+    if (property.check == "Boolean")
+    {
+      Object.assign(
+        propertyDescriptor,
+        {
+          is : propertyMethodFactory.is(key, property),
+          toggle : propertyMethodFactory.toggle(key, property)
+        });
+    }
+
+    if (property.async)
+    {
+      Object.assign(
+        propertyDescriptor,
+        {
+          isAsyncSetActive :
+              propertyMethodFactory.isAsyncSetActive(key, property),
+          getAsync : propertyMethodFactory.getAsync(key, property, get),
+          setAsync : propertyMethodFactory.setAsync(key, property, apply)
+        });
+    }
 
     // Freeze the property descriptor so user doesn't muck it up
     Object.freeze(propertyDescriptor);
@@ -1175,6 +1297,91 @@ function define(className, config)
 
     // Add annotations
     __attachAnno(clazz, "properties", key, property["@"]);
+  }
+
+  // Now handle the group properties we skipped while processing properties
+  for (let key in groupProperties)
+  {
+    let             property = groupProperties[key];
+    let             propertyFirstUp = qx.Bootstrap.firstUp(key);
+
+    // Call the factories to generate each of the property functions
+    // for the current property of the class
+    let propertyDescriptor =
+        {
+          // The complete property definition
+          definition : Object.assign({}, property),
+
+          // Property methods
+          set : propertyMethodFactory.groupSet(key, property),
+          reset : propertyMethodFactory.groupReset(key, property),
+        };
+
+    if (property.themeable)
+    {
+      Object.assign(
+        propertyDescriptor,
+        {
+          setThemed : propertyMethodFactory.groupSetThemed(key, property),
+          resetThemed : propertyMethodFactory.groupResetThemed(key, property)
+        });
+    }
+
+    // Freeze the property descriptor so user doesn't muck it up
+    Object.freeze(propertyDescriptor);
+
+    // Store it in the registry
+    if (clazz.$$propertyDescriptorRegistry)
+    {
+      clazz.$$propertyDescriptorRegistry.register(
+        className, key, propertyDescriptor);
+    }
+
+    // Create the property setter, setPropertyName.
+    Object.defineProperty(
+      clazz.prototype,
+      `set${propertyFirstUp}`,
+      {
+        value        : propertyMethodFactory.groupSet(key, property),
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+    
+    // Create the property setter, setPropertyName.
+    Object.defineProperty(
+      clazz.prototype,
+      `reset${propertyFirstUp}`,
+      {
+        value        : propertyMethodFactory.groupReset(key, property),
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+    
+    // If group is themeable, add the styler and unstyler
+    if (property.themeable)
+    {
+      Object.defineProperty(
+        clazz.prototype,
+        `setThemed${propertyFirstUp}`,
+        {
+          value        : propertyMethodFactory.groupSetThemed(key, property),
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+      
+      Object.defineProperty(
+        clazz.prototype,
+        `resetThemed${propertyFirstUp}`,
+        {
+          value        : propertyMethodFactory.groupResetThemed(key, property),
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
   }
 
   // Add events. These are used for the API Viewer to show what events
@@ -1688,7 +1895,7 @@ function _extend(className, config)
         target.$$initFunctions.forEach(
           (prop) =>
           {
-            let       propertyFirstUp = prop[0].toUpperCase() + prop.substr(1);
+            let           propertyFirstUp = qx.Bootstrap.firstUp(prop);
 
             // Initialize this property
             obj[`init${propertyFirstUp}`]();
@@ -1963,6 +2170,17 @@ function isQxCoreObject(object)
   }
 
   return false;
+}
+
+/**
+ * Convert the first character of the string to upper case.
+ *
+ * @param str {String} the string
+ * @return {String} the string with an upper case first character
+ */
+function firstUp(str)
+{
+  return str.charAt(0).toUpperCase() + str.substr(1);
 }
 
 /**
