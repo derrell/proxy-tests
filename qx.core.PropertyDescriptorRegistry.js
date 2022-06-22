@@ -5,7 +5,7 @@
    http://qooxdoo.org
 
    Copyright:
-     2004-2008 1&1 Internet AG, Germany, http://www.1und1.de
+     2022 Derrell Lipman
 
    License:
      MIT: https://opensource.org/licenses/MIT

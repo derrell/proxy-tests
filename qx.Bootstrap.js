@@ -1,3 +1,25 @@
+/* ************************************************************************
+
+   qooxdoo - the new era of web development
+
+   http://qooxdoo.org
+
+   Copyright:
+     2004-2008 1&1 Internet AG, Germany, http://www.1und1.de
+     2022 Derrell Lipman
+
+   License:
+     MIT: https://opensource.org/licenses/MIT
+     See the LICENSE file in the project's top-level directory for details.
+
+   Authors:
+     * Sebastian Werner (wpbasti)
+     * Andreas Ecker (ecker)
+     * Martin Wittemann (martinwittemann)
+     * Derrell Lipman (derrell)
+
+************************************************************************ */
+
 window = globalThis;
 qx =
   {
@@ -36,28 +58,11 @@ qx =
         "[object ArrayBuffer]": "ArrayBuffer",
         "[object FormData]": "FormData"
       }
-    }
-  };
-
-// TEMPORARY
-Object.assign(
-  qx,
-  {
-    Class :
-    {
-      define,
     },
 
     core :
     {
-      Aspect :
-      {
-        wrap(f)
-        {
-          return f;
-        }
-      },
-
+      // Bootstrap Environment class
       Environment :
       {
         $$environment :
@@ -76,66 +81,8 @@ Object.assign(
           qx.core.Environment.$$environment[key] = value;
         }
       }
-    },
-
-    lang :
-    {
-      Type :
-      {
-        getClass: getClass,
-        isString: isString,
-        isArray: isArray,
-        isObject: isObject,
-        isFunction: isFunction,
-        isFunctionOrAsyncFunction: isFunctionOrAsyncFunction,
-
-        isRegExp(value)
-        {
-          return this.getClass(value) === "RegExp";
-        },
-
-        isNumber(value)
-        {
-          return (
-            value !== null &&
-              (this.getClass(value) === "Number" || value instanceof Number)
-          );
-        },
-
-        isBoolean(value)
-        {
-          return (
-            value !== null &&
-              (this.getClass(value) === "Boolean" ||
-               value instanceof Boolean)
-          );
-        },
-
-        isDate(value)
-        {
-          return (
-            value !== null &&
-              (this.getClass(value) === "Date" || value instanceof Date)
-          );
-        },
-
-        isError(value)
-        {
-          return (
-            value !== null &&
-              (this.getClass(value) === "Error" || value instanceof Error)
-          );
-        },
-
-        isPromise(value)
-        {
-          return value != null && this.isFunction(value.then);
-        }
-      }
-    },
-
-    Promise : Promise
-  });
+    }
+  };
 
 /**
  * Supported keys for property definitions
@@ -2189,3 +2136,13 @@ function __checkValueAgainstJSdocAST(prop, value, ast, check)
     `${prop}: ` +
       `JSDoc type checking is not yet implemented`);
 }
+
+//
+// Pull ourself up by our bootstraps!
+//
+define(
+  "qx.Bootstrap",
+  {
+    type : "static",
+    statics : Object.assign({ define }, qx.Bootstrap)
+  });

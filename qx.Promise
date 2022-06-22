@@ -1,0 +1,2 @@
+// TEMPORARY
+qx.Promise = Promise;
