@@ -1,5 +1,3 @@
-const { qx, assert } = require("./define-class");
-
 qx.Class.define(
   "tester.Object",
   {
@@ -880,4 +878,12 @@ qx.Class.define(
     assert("async getter delays more than 1 second",
            new Date().getTime() > startTime.getTime() + 1000);
   })();
+
+function assert(message, assertionSuccess)
+{
+  console.log(
+    (assertionSuccess ? "OK  " : "FAIL") +
+      " " +
+      message);
+}
 

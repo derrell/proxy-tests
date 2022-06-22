@@ -1,145 +1,141 @@
+window = globalThis;
 qx =
+  {
+    Bootstrap :
     {
-      Bootstrap :
+      genericToString,
+      createNamespace,
+      getDisplayName,
+      setDisplayName,
+      base,
+      getClass,
+      isString,
+      isArray,
+      isObject,
+      isFunction,
+      isFunctionOrAsyncFunction,
+      isQxCoreObject,
+
+      /**
+       * Mapping from JavaScript string representation of objects to names
+       * @internal
+       * @type {Map}
+       */
+      __classToTypeMap: {
+        "[object String]": "String",
+        "[object Array]": "Array",
+        "[object Object]": "Object",
+        "[object RegExp]": "RegExp",
+        "[object Number]": "Number",
+        "[object Boolean]": "Boolean",
+        "[object Date]": "Date",
+        "[object Function]": "Function",
+        "[object AsyncFunction]": "Function",
+        "[object Error]": "Error",
+        "[object Blob]": "Blob",
+        "[object ArrayBuffer]": "ArrayBuffer",
+        "[object FormData]": "FormData"
+      }
+    }
+  };
+
+// TEMPORARY
+Object.assign(
+  qx,
+  {
+    Class :
+    {
+      define,
+    },
+
+    core :
+    {
+      Aspect :
       {
-        /**
-         * Mapping from JavaScript string representation of objects to names
-         * @internal
-         * @type {Map}
-         */
-        __classToTypeMap: {
-          "[object String]": "String",
-          "[object Array]": "Array",
-          "[object Object]": "Object",
-          "[object RegExp]": "RegExp",
-          "[object Number]": "Number",
-          "[object Boolean]": "Boolean",
-          "[object Date]": "Date",
-          "[object Function]": "Function",
-          "[object AsyncFunction]": "Function",
-          "[object Error]": "Error",
-          "[object Blob]": "Blob",
-          "[object ArrayBuffer]": "ArrayBuffer",
-          "[object FormData]": "FormData"
-        },
-
-        getClass : getClass,
-        isString : isString,
-        isArray : isArray,
-        isObject : isObject,
-        isFunction : isFunction,
-        isFunctionOrAsyncFunction : isFunctionOrAsyncFunction,
-
-        getDisplayName(f)
+        wrap(f)
         {
-          return f.$$displayName || "<non-qooxdoo>";
-        },
-
-        setDisplayName(f, classname, name)
-        {
-          if (name)
-          {
-            f.$$displayName = `${classname}.${name}()`;
-          }
-          else
-          {
-            f.$$displayName = `${classname}()`;
-          }
+          return f;
         }
       },
 
-      Class :
+      Environment :
       {
-        define : define
-      },
-
-      core :
-      {
-        Aspect :
+        $$environment :
         {
-          wrap(f)
-          {
-            return f;
-          }
+          "qx.aspect" : true,
+          "qx.debug" : true
         },
 
-        Environment :
+        get(key)
         {
-          $$environment :
-          {
-            "qx.debug" : true
-          },
+          return qx.core.Environment.$$environment[key];
+        },
 
-          get(key)
-          {
-            return qx.core.Environment.$$environment[key];
-          },
-
-          add(key, value)
-          {
-            qx.core.Environment.$$environment[key] = value;
-          }
+        add(key, value)
+        {
+          qx.core.Environment.$$environment[key] = value;
         }
-      },
+      }
+    },
 
-      lang :
+    lang :
+    {
+      Type :
       {
-        Type :
+        getClass: getClass,
+        isString: isString,
+        isArray: isArray,
+        isObject: isObject,
+        isFunction: isFunction,
+        isFunctionOrAsyncFunction: isFunctionOrAsyncFunction,
+
+        isRegExp(value)
         {
-          getClass: getClass,
-          isString: isString,
-          isArray: isArray,
-          isObject: isObject,
-          isFunction: isFunction,
-          isFunctionOrAsyncFunction: isFunctionOrAsyncFunction,
+          return this.getClass(value) === "RegExp";
+        },
 
-          isRegExp(value)
-          {
-            return this.getClass(value) === "RegExp";
-          },
+        isNumber(value)
+        {
+          return (
+            value !== null &&
+              (this.getClass(value) === "Number" || value instanceof Number)
+          );
+        },
 
-          isNumber(value)
-          {
-            return (
-              value !== null &&
-                (this.getClass(value) === "Number" || value instanceof Number)
-            );
-          },
+        isBoolean(value)
+        {
+          return (
+            value !== null &&
+              (this.getClass(value) === "Boolean" ||
+               value instanceof Boolean)
+          );
+        },
 
-          isBoolean(value)
-          {
-            return (
-              value !== null &&
-                (this.getClass(value) === "Boolean" ||
-                 value instanceof Boolean)
-            );
-          },
+        isDate(value)
+        {
+          return (
+            value !== null &&
+              (this.getClass(value) === "Date" || value instanceof Date)
+          );
+        },
 
-          isDate(value)
-          {
-            return (
-              value !== null &&
-                (this.getClass(value) === "Date" || value instanceof Date)
-            );
-          },
+        isError(value)
+        {
+          return (
+            value !== null &&
+              (this.getClass(value) === "Error" || value instanceof Error)
+          );
+        },
 
-          isError(value)
-          {
-            return (
-              value !== null &&
-                (this.getClass(value) === "Error" || value instanceof Error)
-            );
-          },
-
-          isPromise(value)
-          {
-            return value != null && this.isFunction(value.then);
-          }
+        isPromise(value)
+        {
+          return value != null && this.isFunction(value.then);
         }
-      },
+      }
+    },
 
-      Promise : Promise
-    };
+    Promise : Promise
+  });
 
 /**
  * Supported keys for property definitions
@@ -669,16 +665,13 @@ function define(className, config)
   // Attach toString
   if (! clazz.hasOwnProperty("toString"))
   {
-    clazz.toString = function()
-    {
-      return `[Class ${clazz.classname}]`;
-    };
+    clazz.toString = qx.Bootstrap.genericToString;
   }
 
   // Add statics
   for (let key in (config.statics || {}))
   {
-    let             staticFunc;
+    let             staticFuncOrVar;
 
     if (qx.core.Environment.get("qx.debug"))
     {
@@ -711,11 +704,18 @@ function define(className, config)
       continue;
     }
 
-    staticFunc = config.statics[key];
-    if (qx.core.Environment.get("qx.aspects"))
+    staticFuncOrVar = config.statics[key];
+
+    if (typeof staticFuncOrVar == "function")
     {
-      staticFunc =
-        qx.core.Aspect.wrap(className, staticFunc, "static");
+      if (qx.core.Environment.get("qx.aspects"))
+      {
+        staticFuncOrVar =
+          qx.core.Aspect.wrap(className, staticFuncOrVar, "static");
+      }
+
+      // Allow easily identifying this method
+      qx.Bootstrap.setDisplayName(staticFuncOrVar, className, key);
     }
 
     // Add this static as a class property
@@ -723,7 +723,7 @@ function define(className, config)
       clazz,
       key,
       {
-        value        : staticFunc,
+        value        : staticFuncOrVar,
         writable     : true,
         configurable : true,
         enumerable   : true
@@ -1295,34 +1295,41 @@ function define(className, config)
   qx.Bootstrap.setDisplayName(destructDereferencer, className, "destruct");
 
   // Create the specified namespace
-  path = globalThis;
-  classnameComponents = className.split(".");
-  classnameComponents.forEach(
-    (component, i) =>
-    {
-      const           bExists = component in path;
-      const           isLast = i == classnameComponents.length - 1;
+  if (0)
+  {
+    path = globalThis;
+    classnameComponents = className.split(".");
+    classnameComponents.forEach(
+      (component, i) =>
+      {
+        const           bExists = component in path;
+        const           isLast = i == classnameComponents.length - 1;
 
-      if (! bExists && isLast)
-      {
-        path[component] = clazz;
-      }
-      else if (! bExists)
-      {
-        path[component] = {};
-      }
-      else if (bExists && ! isLast)
-      {
-        // Not last component, so is allowed to exist. Just keep traversing.
-      }
-      else
-      {
-        throw new Error(
-          `Namespace component ${component} from ${className} already exists`);
-      }
+        if (! bExists && isLast)
+        {
+          path[component] = clazz;
+        }
+        else if (! bExists)
+        {
+          path[component] = {};
+        }
+        else if (bExists && ! isLast)
+        {
+          // Not last component, so is allowed to exist. Just keep traversing.
+        }
+        else
+        {
+          throw new Error(
+            `Namespace component ${component} from ${className} already exists`);
+        }
 
-      path = path[component];
-    });
+        path = path[component];
+      });
+  }
+  else
+  {
+    qx.Bootstrap.createNamespace(className, clazz);
+  }
 
   // Now that the class has been defined, call its (optional) defer function
   if (config.defer)
@@ -1389,7 +1396,7 @@ function _extend(className, config)
 
   // Create the subclass' prototype as a copy of the superclass' prototype
   subclass.prototype = Object.create(superclass.prototype);
-  subclass.prototype.base = base;
+  subclass.prototype.base = qx.Bootstrap.base;
   subclass.prototype.constructor = subclass;
 
   // Save this object's properties
@@ -1746,13 +1753,68 @@ function _extend(className, config)
   return subclass.prototype.constructor;
 }
 
+function genericToString()
+{
+  return `[Class ${this.classname}]`;
+}
+
+function createNamespace(name, object)
+{
+  var splits = name.split(".");
+  var part = splits[0];
+  var parent =
+    qx.$$namespaceRoot && qx.$$namespaceRoot[part]
+      ? qx.$$namespaceRoot
+      : window;
+
+  for (var i = 0, len = splits.length - 1;
+       i < len;
+       i++, part = splits[i])
+  {
+    if (!parent[part])
+    {
+      parent = parent[part] = {};
+    }
+    else
+    {
+      parent = parent[part];
+    }
+  }
+
+  // store object
+  parent[part] = object;
+
+  // return last part name (e.g. classname)
+  return part;
+}
+
+function getDisplayName(f)
+{
+  return f.$$displayName || "<non-qooxdoo>";
+}
+
+function setDisplayName(f, classname, name)
+{
+  if (name)
+  {
+    f.$$displayName = `${classname}.${name}()`;
+  }
+  else
+  {
+    f.$$displayName = `${classname}()`;
+  }
+}
+
 function base(args, varargs)
 {
-  if (typeof args.callee.base != "function")
+  if (qx.Bootstrap.DEBUG)
   {
-    throw new Error(
-      "Cannot call super class. Method is not derived: " +
-        qx.Bootstrap.getDisplayName(args.callee));
+    if (typeof args.callee.base != "function")
+    {
+      throw new Error(
+        "Cannot call super class. Method is not derived: " +
+          qx.Bootstrap.getDisplayName(args.callee));
+    }
   }
 
   if (arguments.length === 1)
@@ -1920,6 +1982,34 @@ function isFunctionOrAsyncFunction(value)
 }
 
 /**
+ * Tests whether an object is an instance of qx.core.Object without
+ * using instanceof - this is only for certain low level instances
+ * which would otherwise cause a circular, load time dependency
+ *
+ * @param object {Object?} the object to test
+ * @return {Boolean} true if object is an instance of qx.core.Object
+ */
+function isQxCoreObject(object)
+{
+  if (object === object.constructor)
+  {
+    return false;
+  }
+
+  let clz = object.constructor;
+  while (clz)
+  {
+    if (clz.classname === "qx.core.Object")
+    {
+      return true;
+    }
+    clz = clz.superclass;
+  }
+
+  return false;
+}
+
+/**
  * Attach events to the class
  *
  * @param clazz {Class} class to add the events to
@@ -2034,6 +2124,17 @@ function __validatePropertyDefinitions(className, config)
   {
     let             property = properties[prop];
 
+    // Ensure they're not passing a qx.core.Object descendent as a property
+    if (qx.core.Environment.get("qx.debug"))
+    {
+      if (qx.Bootstrap.isQxCoreObject(properties))
+      {
+        throw new Error(
+          `${prop} in ${className}: ` +
+            "Can't use qx.core.Object descendent as property");
+      }
+    }
+
     // Set allowed keys based on whether this is a grouped property or not
     allowedKeys = property.group ? $$allowedPropGroupKeys : $$allowedPropKeys;
 
@@ -2088,21 +2189,3 @@ function __checkValueAgainstJSdocAST(prop, value, ast, check)
     `${prop}: ` +
       `JSDoc type checking is not yet implemented`);
 }
-
-
-
-//
-// Extras
-//
-
-function assert(message, assertionSuccess)
-{
-  console.log(
-    (assertionSuccess ? "OK  " : "FAIL") +
-      " " +
-      message);
-}
-
-module.exports = { qx, assert };
-
-require("./PropertyDescriptorRegistry.js");

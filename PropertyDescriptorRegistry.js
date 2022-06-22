@@ -16,8 +16,6 @@
 
 ************************************************************************ */
 
-const { qx } = require("./define-class");
-
 qx.Class.define(
   "qx.core.PropertyDescriptorRegistry",
   {
