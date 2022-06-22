@@ -5,7 +5,7 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
 
 # How to run tests
 - The test program is `test.js` but the hierarchy of dependencies that
-  must be defined prior to the test code is implmeented in `boot.js`.
+  must be defined prior to the test code is implmented in `boot.js`.
   Therefore, to run the test program, do:
   - `node boot.js`
 
