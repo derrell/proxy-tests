@@ -21,6 +21,8 @@
 ************************************************************************ */
 
 window = globalThis;
+
+// Bootstrap the Bootstrap static class
 qx =
   {
     Bootstrap :
@@ -67,8 +69,6 @@ qx =
       {
         $$environment :
         {
-          "qx.aspect" : true,
-          "qx.debug" : true
         },
 
         get(key)
@@ -497,6 +497,13 @@ function define(className, config)
   let             path;
   let             classnameComponents;
 
+  // Process environment
+  let environment = config.environment || {};
+  for (let key in config.environment)
+  {
+    qx.core.Environment.add(key, config.environment[key]);
+  }
+
   if (qx.core.Environment.get("qx.debug"))
   {
     __validatePropertyDefinitions(className, config);
@@ -788,13 +795,6 @@ function define(className, config)
 
     // Attach annotations
     __attachAnno(clazz, "members", key, config.members["@" + key]);
-  }
-
-  // Process environment
-  let environment = config.environment || {};
-  for (let key in config.environment)
-  {
-    qx.core.Environment.add(key, config.environment[key]);
   }
 
   // Add properties

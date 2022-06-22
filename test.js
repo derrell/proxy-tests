@@ -395,7 +395,13 @@ try
     "tester.StaticClass",
     {
       type : "static",
-      extend : tester.Superclass,
+
+      environment :
+      {
+        "qx.debug" : true       // required for this test
+      },
+
+      extend : tester.Superclass
     });
 
   // This should have failed
@@ -413,6 +419,12 @@ try
     "tester.StaticClass",
     {
       type : "static",
+
+      environment :
+      {
+        "qx.debug" : true       // required for this test
+      },
+
       members :
       {
         int : 23
