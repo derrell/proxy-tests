@@ -6,7 +6,7 @@ qx.Class.define(
 
     statics :
     {
-      wrap(f)
+      wrap : function(fullName, f, type)
       {
         return f;
       }

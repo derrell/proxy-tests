@@ -64,6 +64,15 @@ qx =
 
     core :
     {
+      // Bootstrap Aspect class
+      Aspect :
+      {
+        wrap : function(fullName, f, type)
+        {
+          return f;
+        }
+      },
+
       // Bootstrap Environment class
       Environment :
       {
