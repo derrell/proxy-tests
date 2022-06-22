@@ -1,17 +1,13 @@
 This is work in progress towards a reimplementation of the qooxdoo
 Class and Property systems.
 
-# Code organization
-The code that will eventually move into qx.Class (and possibly
-qx.core.Property, although it's yet to be determined if that is even
-needed), is in `define-class.js`. For simplicity of testing, this file
-is currently a `require()`d module. It won't, of course, be such in
-its final implementation.
-
-The test program is `test.js`.
+This is a mostly fresh implementation of qx.Bootstrap and qx.Class which implements classes using a Proxy. This avoid the necessity for implementing classes' properties using generated code, and greatly simplifies the qx.Bootstrap.define() and its property handling code.
 
 # How to run tests
-- node test.js
+- The test program is `test.js` but the hierarchy of dependencies that
+  must be defined prior to the test code is implmeented in `boot.js`.
+  Therefore, to run the test program, do:
+  - `node boot.js`
 
 # Legacy Class features currently implemented
 - [x] type
