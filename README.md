@@ -90,7 +90,74 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
   Implemented parsing of JSDoc type strings (but then failing the
   check if it parsed because nothing yet validates the value against
   the AST
-- [ ] immutability
+- [x] immutability
+
+  Immutability -- altering the contents of an existing reference object rather
+  than replacing that object when `set` is called -- is now easily implemented
+  with the new replaceable storage facility, as shown below. Note that in this
+  example, the property is initially set to `undefined` in storage's `init`.
+  When `initFunction` is called, storage's `set` discovers that the property
+  has no value yet, so assigns the designated array... the `initFunction`'s
+  returned value. In all subsequent attempts to set the value of the property,
+  the contents of the array are replaced within the originally installed
+  array. That originally installed array object remains.
+
+  ```
+qx.Class.define(
+  "tester.ImmutableArray",
+  {
+    extend : tester.Object,
+
+    properties :
+    {
+      a :
+      {
+        check : "Array",
+        initFunction : () => [],
+        storage :
+          {
+            init(propertyName, property, clazz)
+            {
+              // Create the storage for this property's current value
+              Object.defineProperty(
+                clazz.prototype,
+                propertyName,
+                {
+                  value        : undefined,
+                  writable     : true, // must be true for possible initFunction
+                  configurable : false,
+                  enumerable   : false
+                });
+            },
+
+            get(prop)
+            {
+              return this[prop];
+            },
+
+            set(prop, value)
+            {
+              if (this[prop] === undefined)
+              {
+                this[prop] = value;
+                return;
+              }
+              this[prop].length = 0;
+              Array.prototype.push.apply(this[prop], value);
+            },
+
+            dereference(prop, property)
+            {
+              // Called immediately after the destructor, if the
+              // property has `dereference : true`.
+              delete this[prop];
+            }
+          }
+      }
+    }
+  });
+  ```
+
 - [x] mutation detection
 - [ ] fast property definition
 - [ ] integration with references
