@@ -102,7 +102,7 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
   the contents of the array are replaced within the originally installed
   array. That originally installed array object remains.
 
-  ```
+```
 qx.Class.define(
   "tester.ImmutableArray",
   {
@@ -156,7 +156,7 @@ qx.Class.define(
       }
     }
   });
-  ```
+```
 
 - [x] mutation detection
 - [ ] fast property definition
