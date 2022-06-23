@@ -928,12 +928,12 @@ function define(className, config)
       // ... then create the default storage mechanism for it
       property.storage =
         {
-          init(propertyName, property)
+          init(propertyName, property, clazz)
           {
             // Create the storage for this property's current value
             Object.defineProperty(
               clazz.prototype,
-              key,
+              propertyName,
               {
                 value        : property.init,
                 writable     : true, // must be true for possible initFunction
@@ -964,7 +964,7 @@ function define(className, config)
     storage = property.storage;
 
     // Initialize the property
-    storage.init(key, Object.assign({}, property));
+    storage.init(key, Object.assign({}, property), clazz);
 
     // We always generate an event. If the event name isn't specified,
     // use the default name
