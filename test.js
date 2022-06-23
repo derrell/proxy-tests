@@ -539,6 +539,87 @@ qx.Class.define(
     }
   });
 
+qx.Class.define(
+  "tester.PropGroup",
+  {
+    extend : tester.Object,
+
+    properties :
+    {
+      // group properties
+      xNoShortcut :
+      {
+        group : [ "xTop", "xRight", "xBottom", "xLeft" ]
+      },
+
+      xShortcut :
+      {
+        group : [ "xTop", "xRight", "xBottom", "xLeft" ],
+        mode : "shortcut"
+      },
+
+      yAllThemeable :
+      {
+        group : [ "yTop", "yRight", "yBottom", "yLeft" ],
+        themeable : true
+      },
+
+      // non-themeable properties
+      xTop :
+      {
+        check : "Integer",
+        init : 1
+      },
+
+      xRight :
+      {
+        check : "Integer",
+        init : 2
+      },
+
+      xBottom :
+      {
+        check : "Integer",
+        init : 3
+      },
+
+      xLeft :
+      {
+        check : "Integer",
+        init : 4
+      },
+
+      yTop :
+      {
+        check : "Integer",
+        themeable : true,
+        init : 10
+      },
+
+      // themeable properties
+      yRight :
+      {
+        check : "Integer",
+        themeable : true,
+        init : 11
+      },
+
+      yBottom :
+      {
+        check : "Integer",
+        themeable : true,
+        init : 12
+      },
+
+      yLeft :
+      {
+        check : "Integer",
+        themeable : true,
+        init : 13
+      }
+    }
+  });
+
 
 (async () =>
   {
@@ -862,6 +943,87 @@ qx.Class.define(
     superinstance.positive = 1;
     propertyDescriptorPositive.set(2);
     assert("property descriptor set works", superinstance.positive === 2);
+
+    // Test property groups
+    let propGroup = new tester.PropGroup();
+    assert("property group values correct at start",
+           propGroup.xTop == 1 &&
+           propGroup.xRight == 2 &&
+           propGroup.xBottom == 3 &&
+           propGroup.xLeft == 4);
+
+    propGroup.xNoShortcut = [ 20, 30, 40, 50 ];
+    assert("property group values correct after assignment, no shortcut",
+           propGroup.xTop == 20 &&
+           propGroup.xRight == 30 &&
+           propGroup.xBottom == 40 &&
+           propGroup.xLeft == 50);
+
+    propGroup.setXNoShortcut([ 120, 130, 140, 150 ]);
+    assert("property group values correct after set, no shortcut",
+           propGroup.xTop == 120 &&
+           propGroup.xRight == 130 &&
+           propGroup.xBottom == 140 &&
+           propGroup.xLeft == 150);
+
+    propGroup.xShortcut = [ 220, 230, 240, 250 ];
+    assert("property group values correct after assignment, shortcut, 4",
+           propGroup.xTop == 220 &&
+           propGroup.xRight == 230 &&
+           propGroup.xBottom == 240 &&
+           propGroup.xLeft == 250);
+
+    propGroup.xShortcut = [ 320, 330, 340 ];
+    assert("property group values correct after assignment, shortcut, 3",
+           propGroup.xTop == 320 &&
+           propGroup.xRight == 330 &&
+           propGroup.xBottom == 340 &&
+           propGroup.xLeft == 320);
+
+    propGroup.xShortcut = [ 420, 430 ];
+    assert("property group values correct after assignment, shortcut, 2",
+           propGroup.xTop == 420 &&
+           propGroup.xRight == 430 &&
+           propGroup.xBottom == 420 &&
+           propGroup.xLeft == 430);
+
+    propGroup.xShortcut = [ 520 ];
+    assert("property group values correct after assignment, shortcut, 1",
+           propGroup.xTop == 520 &&
+           propGroup.xRight == 520 &&
+           propGroup.xBottom == 520 &&
+           propGroup.xLeft == 520);
+
+    propGroup.xShortcut = 620;
+    assert("property group values correct after assignment, no array",
+           propGroup.xTop == 620 &&
+           propGroup.xRight == 620 &&
+           propGroup.xBottom == 620 &&
+           propGroup.xLeft == 620);
+
+    try
+    {
+      qx.Class.define(
+        "tester.PropGroupMixedThemeable",
+        {
+          extend : tester.PropGroup,
+
+          properties :
+          {
+            // Attempts to add non-themeable properties to themeable group
+            yMixedThemeable :
+            {
+              group : [ "yTop", "yRight", "xBottom", "xLeft" ],
+              themeable : true
+            }      
+          }
+        });
+      assert("property group with mixed themeable/non-themeable fails", false);
+    }
+    catch(e)
+    {
+      assert("property group with mixed themeable/non-themeable fails", true);
+    }
 
     //
     // Keep these delay tests last in the test...

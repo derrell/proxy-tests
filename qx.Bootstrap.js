@@ -505,7 +505,7 @@ let propertyMethodFactory =
           // muck with the array.
           args = (args instanceof Array
                   ? args.concat()
-                  : qx.lang.Array.fromArguments(args));
+                  : Array.prototype.concat.call(args));
 
           for (let i = 0;
                i < property.group.length && args.length > 0;
@@ -551,7 +551,7 @@ let propertyMethodFactory =
           // muck with the array.
           args = (args instanceof Array
                   ? args.concat()
-                  : qx.lang.Array.fromArguments(args));
+                  : Array.prototype.concat.call(args));
 
           for (let i = 0;
                i < property.group.length && args.length > 0;
@@ -1304,6 +1304,37 @@ function define(className, config)
   {
     let             property = groupProperties[key];
     let             propertyFirstUp = qx.Bootstrap.firstUp(key);
+    let             allProperties = clazz.$$allProperties;
+
+    if (qx.core.Environment.get("qx.debug"))
+    {
+      // Validate that group contains only existing properties, and if
+      // themeable contains only themeable properties
+      for (let prop of property.group)
+      {
+        if (! (prop in allProperties))
+        {
+          throw new Error(
+            `Property group '${key}': ` +
+              `property '${prop}' does not exist`);
+        }
+
+        if (allProperties[prop].group)
+        {
+          throw new Error(
+            `Property group '${key}': ` +
+              `can not add group '${prop}' to a group`);
+        }
+
+        if (property.themeable && ! allProperties[prop].themeable)
+        {
+          throw new Error(
+            `Property group '${key}': ` +
+              `can not add themeable property '${prop}' to ` +
+              "non-themeable group");
+        }
+      }
+    }
 
     // Call the factories to generate each of the property functions
     // for the current property of the class
@@ -1342,7 +1373,7 @@ function define(className, config)
       clazz.prototype,
       `set${propertyFirstUp}`,
       {
-        value        : propertyMethodFactory.groupSet(key, property),
+        value        : propertyDescriptor.set,
         writable     : false,
         configurable : false,
         enumerable   : false
@@ -1353,7 +1384,7 @@ function define(className, config)
       clazz.prototype,
       `reset${propertyFirstUp}`,
       {
-        value        : propertyMethodFactory.groupReset(key, property),
+        value        : propertyDescriptor.reset,
         writable     : false,
         configurable : false,
         enumerable   : false
@@ -1366,7 +1397,7 @@ function define(className, config)
         clazz.prototype,
         `setThemed${propertyFirstUp}`,
         {
-          value        : propertyMethodFactory.groupSetThemed(key, property),
+          value        : propertyDescriptor.setThemed,
           writable     : false,
           configurable : false,
           enumerable   : false
@@ -1376,7 +1407,7 @@ function define(className, config)
         clazz.prototype,
         `resetThemed${propertyFirstUp}`,
         {
-          value        : propertyMethodFactory.groupResetThemed(key, property),
+          value        : propertyDescriptor.resetThemed,
           writable     : false,
           configurable : false,
           enumerable   : false
@@ -1681,6 +1712,15 @@ function _extend(className, config)
               // Is this a property?
               if (property)
               {
+                // We can handle a group property by simply calling its setter
+                if (property.group)
+                {
+                  let           propertyFirstUp = qx.Bootstrap.firstUp(prop);
+
+                  obj[`set${propertyFirstUp}`](value);
+                  return;
+                }
+
                 // Ensure they're not setting null to a non-nullable property
                 if (! property.nullable && value === null)
                 {

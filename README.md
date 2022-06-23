@@ -47,11 +47,11 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
 - [x] dereference
 - [x] deferredInit (deprecated; see `initFunction`, below)
 - [x] isEqual
-- [ ] property groups
-  - [ ] name
-  - [ ] group
-  - [ ] mode
-  - [ ] themeable
+- [x] property groups
+  - [x] name
+  - [x] group
+  - [x] mode
+  - [x] themeable
 - [x] generated methods
   - [x] getProperty()
   - [x] setProperty()
