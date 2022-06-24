@@ -90,8 +90,8 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
     the existing object with the elements in the given object.
   - `qx.core.propertystorage.ImmutableDataArray` is used for
     `qx.data.Array` members. It intercepts set operations, replacing all
-    members of the existing qx.data.Array object with the elements in
-    the given qx.data.Array or Array.
+    members of the existing `qx.data.Array` object with the elements in
+    the given `qx.data.Array` or `Array`.
 - [?] eliminate need for pseudo-properties (maybe done?)
 - [?] eliminate need for property sniffing/detection (maybe done?)
 - [ ] support for private and protected properties
@@ -107,11 +107,11 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
   replacing that object, when `set` is called. This is implemented via
   the new replaceable storage facility. The developer may either
   specify `storage : myPkg.storage.MyStorage` (which must implement
-  qx.core.propertystorage.IStorage); or for the three existing types
-  of immutable storage, may specify `check : <type>` (where type is
-  one of "Array", "Object", or "qx.data.Array" and also specify
-  `immutable : "replace"`. In the latter case, the appropriate storage
-  class is selected automatically.
+  `qx.core.propertystorage.IStorage`); or for the three
+  qooxdoo-provided types of immutable storage, may specify `check :
+  <type>` (where type is one of "Array", "Object", or "qx.data.Array"
+  and also specify `immutable : "replace"`. In the latter case, the
+  appropriate storage class is selected automatically.
 - [x] mutation detection
 - [ ] fast property definition
 - [ ] integration with references
