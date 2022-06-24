@@ -78,18 +78,18 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
   object's property.
 - [x] readonly properties, implemented via `immutable : "readonly"`
 - [x] storage can be completely replaced. Storage mechanisms must
-  implement qx.core.propertystorage.IStorage. There are three four
+  implement `qx.core.propertystorage.IStorage`. There are three four
   available storage mechanisms:
-  - qx.core.propertystorage.Default is (duh!) the default one. It
+  - `qx.core.propertystorage.Default` is (duh!) the default one. It
     stores values in the object containing the property.
-  - qx.core.propertystorage.ImmutableArray is used for Array members.
+  - `qx.core.propertystorage.ImmutableArray` is used for Array members.
     It intercepts set operations, replacing all elements in the
     existing array with the elements in the given array.
-  - qx.core.propertystorage.ImmutableObject is used for native Object
+  - `qx.core.propertystorage.ImmutableObject` is used for native Object
     members. It intercepts set operations, replacing all members of
     the existing object with the elements in the given object.
-  - qx.core.propertystorage.ImmutableDataArray is used for
-    qx.data.Array members. It intercepts set operations, replacing all
+  - qx.core.propertystorage.ImmutableDataArray` is used for
+    `qx.data.Array` members. It intercepts set operations, replacing all
     members of the existing qx.data.Array object with the elements in
     the given qx.data.Array or Array.
 - [?] eliminate need for pseudo-properties (maybe done?)
