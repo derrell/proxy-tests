@@ -88,7 +88,7 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
   - `qx.core.propertystorage.ImmutableObject` is used for native Object
     members. It intercepts set operations, replacing all members of
     the existing object with the elements in the given object.
-  - qx.core.propertystorage.ImmutableDataArray` is used for
+  - `qx.core.propertystorage.ImmutableDataArray` is used for
     `qx.data.Array` members. It intercepts set operations, replacing all
     members of the existing qx.data.Array object with the elements in
     the given qx.data.Array or Array.
