@@ -631,45 +631,7 @@ qx.Class.define(
       {
         check : "Array",
         initFunction : () => [],
-        storage :
-          {
-            init(propertyName, property, clazz)
-            {
-              // Create the storage for this property's current value
-              Object.defineProperty(
-                clazz.prototype,
-                propertyName,
-                {
-                  value        : undefined,
-                  writable     : true, // must be true for possible initFunction
-                  configurable : false,
-                  enumerable   : false
-                });
-            },
-
-            get(prop)
-            {
-              return this[prop];
-            },
-
-            set(prop, value)
-            {
-              if (this[prop] === undefined)
-              {
-                this[prop] = value;
-                return;
-              }
-              this[prop].length = 0;
-              Array.prototype.push.apply(this[prop], value);
-            },
-
-            dereference(prop, property)
-            {
-              // Called immediately after the destructor, if the
-              // property has `dereference : true`.
-              delete this[prop];
-            }
-          }
+        storage : qx.core.propertystorage.ImmutableArray
       }
     }
   });
@@ -681,6 +643,30 @@ immutableArray.a = [ 10, 20 ];
 let a2 = immutableArray.a;
 console.log(`immutable array a2=`, a2);
 assert("immutable array remains unchanged after set", a1 === a2);
+
+qx.Class.define(
+  "tester.ImmutableObject",
+  {
+    extend : tester.Object,
+
+    properties :
+    {
+      a :
+      {
+        check : "Object",
+        initFunction : () => {},
+        storage : qx.core.propertystorage.ImmutableObject
+      }
+    }
+  });
+
+let immutableObject = new tester.ImmutableObject();
+let o1 = immutableObject.a;
+console.log(`immutable object o1=`, o1);
+immutableObject.a = { x : 10, y : 20 };
+let o2 = immutableObject.a;
+console.log(`immutable object o2=`, o2);
+assert("immutable object remains unchanged after set", o1 === o2);
 
 
 (async () =>

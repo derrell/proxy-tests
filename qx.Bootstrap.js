@@ -90,6 +90,40 @@ qx =
         {
           qx.core.Environment.$$environment[key] = value;
         }
+      },
+
+      propertystorage :
+      {
+        init(propertyName, property, clazz)
+        {
+          // Create the storage for this property's current value
+          Object.defineProperty(
+            clazz.prototype,
+            propertyName,
+            {
+              value        : property.init,
+              writable     : true, // must be true for possible initFunction
+              configurable : false,
+              enumerable   : false
+            });
+        },
+
+        get(prop)
+        {
+          return this[prop];
+        },
+
+        set(prop, value)
+        {
+          this[prop] = value;
+        },
+
+        dereference(prop, property)
+        {
+          // Called immediately after the destructor, if the
+          // property has `dereference : true`.
+          delete this[prop];
+        }
       }
     }
   };
@@ -123,7 +157,7 @@ let $$allowedPropKeys =
       readonly: "boolean",        // Boolean
       get: stringOrFunction,      // String, Function
       initFunction: "function",   // Function
-      storage: "object"           // Map
+      storage: "function"         // implements qx.core.propertystorage.IStorage
     };
 
 /**
@@ -586,6 +620,7 @@ let propertyMethodFactory =
       }
     };
 
+// Default comparison for whether to call apply method and generate an event
 let isEqual = (a, b) => a === b;
 
 function define(className, config)
@@ -926,39 +961,23 @@ function define(className, config)
     if (! property.storage)
     {
       // ... then create the default storage mechanism for it
-      property.storage =
-        {
-          init(propertyName, property, clazz)
-          {
-            // Create the storage for this property's current value
-            Object.defineProperty(
-              clazz.prototype,
-              propertyName,
-              {
-                value        : property.init,
-                writable     : true, // must be true for possible initFunction
-                configurable : false,
-                enumerable   : false
-              });
-          },
+      property.storage = qx.core.propertystorage.Default;
+    }
 
-          get(prop)
-          {
-            return this[prop];
-          },
-
-          set(prop, value)
-          {
-            this[prop] = value;
-          },
-
-          dereference(prop, property)
-          {
-            // Called immediately after the destructor, if the
-            // property has `dereference : true`.
-            delete this[prop];
-          }
-        };
+    if (qx.core.Environment.get("qx.debug"))
+    {
+      // FIXME: change this to a test for that the specied storage implements
+      // qx.core.propertystorage.IStorage
+      if (typeof property.storage.init != "function" ||
+          typeof property.storage.get != "function" ||
+          typeof property.storage.set != "function" ||
+          typeof property.storage.dereference != "function")
+      {
+        throw new Error(
+          `${key}: ` +
+            "property storage does not implement " +
+            "qx.core.propertystorage.IStorage");
+      }
     }
 
     storage = property.storage;
@@ -1672,13 +1691,7 @@ function _extend(className, config)
               const           storage =
                 property && property.storage
                     ? property.storage
-                    : {
-                        // get non-properties from standard storage
-                        get(prop)
-                        {
-                          return this[prop];
-                        }
-                      };
+                    : qx.core.propertystorage.Default; // for member var getter
 
               // If there's a custom proxy handler, try it
               if (customProxyHandler && customProxyHandler.get)
@@ -1701,13 +1714,7 @@ function _extend(className, config)
               const           storage =
                 property && property.storage
                     ? property.storage
-                    : {
-                        // set non-properties to standard storage
-                        set(prop, value)
-                        {
-                          this[prop] = value;
-                        }
-                      };
+                    : qx.core.propertystorage.Default; // for member var setter
 
               // Is this a property?
               if (property)
@@ -1718,7 +1725,7 @@ function _extend(className, config)
                   let           propertyFirstUp = qx.Bootstrap.firstUp(prop);
 
                   obj[`set${propertyFirstUp}`](value);
-                  return;
+                  return undefined;
                 }
 
                 // Ensure they're not setting null to a non-nullable property
@@ -2386,7 +2393,7 @@ function __validatePropertyDefinitions(className, config)
               `${className}: ` +
                 (property.group ? "group " : "") +
                 `property '${prop}' defined with wrong value type ` +
-                `for key '${key}'`);
+                `for key '${key}' (found ${typeof property[key]})`);
           }
         }
       });
