@@ -1879,7 +1879,7 @@ function _extend(className, config)
                 {
                   console.log(
                     `Would generate event type ${property.event} ` +
-                      `{ value: ${value}, old: ${old} }`);
+                      `{ value: ${JSON.stringify(value)}, old: ${old} }`);
                 }
 
                 // Save the (possibly updated) value

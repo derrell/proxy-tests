@@ -653,8 +653,8 @@ qx.Class.define(
     {
       a :
       {
-        check : "Object",
-        initFunction : () => {},
+//        check : "Object",
+        initFunction : () => { return {}; },
         storage : qx.core.propertystorage.ImmutableObject
       }
     }
