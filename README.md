@@ -76,13 +76,22 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
   retrieval was made, so that they can be used from the retrieved
   property descriptor to get information about, or alter, that
   object's property.
-- [x] readonly properties. `init` and `initFunction`, and therefore
-  the`initProperty()` methods, intentionally ignore `readonly` so that
-  the property's value can be set. This is true even if manually
-  calling `initProperty()`. Since `initFunction` can and often will
-  return a unique value, this technically voids the `readonly`
-  contract, but seems like the right thing to do in this case.
-- [x] storage can be completely replaced
+- [x] readonly properties, implemented via `immutable : "readonly"`
+- [x] storage can be completely replaced. Storage mechanisms must
+  implement qx.core.propertystorage.IStorage. There are three four
+  available storage mechanisms:
+  - qx.core.propertystorage.Default is (duh!) the default one. It
+    stores values in the object containing the property.
+  - qx.core.propertystorage.ImmutableArray is used for Array members.
+    It intercepts set operations, replacing all elements in the
+    existing array with the elements in the given array.
+  - qx.core.propertystorage.ImmutableObject is used for native Object
+    members. It intercepts set operations, replacing all members of
+    the existing object with the elements in the given object.
+  - qx.core.propertystorage.ImmutableDataArray is used for
+    qx.data.Array members. It intercepts set operations, replacing all
+    members of the existing qx.data.Array object with the elements in
+    the given qx.data.Array or Array.
 - [?] eliminate need for pseudo-properties (maybe done?)
 - [?] eliminate need for property sniffing/detection (maybe done?)
 - [ ] support for private and protected properties
@@ -90,74 +99,19 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
   Implemented parsing of JSDoc type strings (but then failing the
   check if it parsed because nothing yet validates the value against
   the AST
-- [x] immutability
-
-  Immutability -- altering the contents of an existing reference object rather
-  than replacing that object when `set` is called -- is now easily implemented
-  with the new replaceable storage facility, as shown below. Note that in this
-  example, the property is initially set to `undefined` in storage's `init`.
-  When `initFunction` is called, storage's `set` discovers that the property
-  has no value yet, so assigns the designated array... the `initFunction`'s
-  returned value. In all subsequent attempts to set the value of the property,
-  the contents of the array are replaced within the originally installed
-  array. That originally installed array object remains.
-
-```
-qx.Class.define(
-  "tester.ImmutableArray",
-  {
-    extend : tester.Object,
-
-    properties :
-    {
-      a :
-      {
-        check : "Array",
-        initFunction : () => [],
-        storage :
-          {
-            init(propertyName, property, clazz)
-            {
-              // Create the storage for this property's current value
-              Object.defineProperty(
-                clazz.prototype,
-                propertyName,
-                {
-                  value        : undefined,
-                  writable     : true, // must be true for possible initFunction
-                  configurable : false,
-                  enumerable   : false
-                });
-            },
-
-            get(prop)
-            {
-              return this[prop];
-            },
-
-            set(prop, value)
-            {
-              if (this[prop] === undefined)
-              {
-                this[prop] = value;
-                return;
-              }
-              this[prop].length = 0;
-              Array.prototype.push.apply(this[prop], value);
-            },
-
-            dereference(prop, property)
-            {
-              // Called immediately after the destructor, if the
-              // property has `dereference : true`.
-              delete this[prop];
-            }
-          }
-      }
-    }
-  });
-```
-
+- [x] immutability.
+  Immutability takes two forms:
+  - readonly properties. Any property can be readonly, as specified
+    with `immutable : "readonly".
+  - altering the contents of an existing reference object rather than
+  replacing that object, when `set` is called. This is implemented via
+  the new replaceable storage facility. The developer may either
+  specify `storage : myPkg.storage.MyStorage` (which must implement
+  qx.core.propertystorage.IStorage); or for the three existing types
+  of immutable storage, may specify `check : <type>` (where type is
+  one of "Array", "Object", or "qx.data.Array" and also specify
+  `immutable : "replace"`. In the latter case, the appropriate storage
+  class is selected automatically.
 - [x] mutation detection
 - [ ] fast property definition
 - [ ] integration with references

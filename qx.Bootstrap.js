@@ -154,10 +154,10 @@ let $$allowedPropKeys =
       isEqual: stringOrFunction,  // String, Function
 
       // Not in original set of allowed keys:
-      readonly: "boolean",        // Boolean
       get: stringOrFunction,      // String, Function
       initFunction: "function",   // Function
-      storage: "function"         // implements qx.core.propertystorage.IStorage
+      storage: "function",        // implements qx.core.propertystorage.IStorage
+      immutable: "string"         // String
     };
 
 /**
@@ -488,7 +488,7 @@ let propertyMethodFactory =
             if (property.isEqual(value, old))
             {
               // Save the new property value. This is before any async calls
-              if (property.readonly)
+              if (property.immutable == "readonly")
               {
                 throw new Error(
                   `Attempt to set value of readonly property ${prop}`);
@@ -960,8 +960,34 @@ function define(className, config)
     // If there's no storage mechanism specified for this property...
     if (! property.storage)
     {
-      // ... then create the default storage mechanism for it
-      property.storage = qx.core.propertystorage.Default;
+      // ... then select a storage mechanism for it
+      if (property.immutable == "replace")
+      {
+        if (property.check == "Array")
+        {
+          property.storage = qx.core.propertystorage.ImmutableArray;
+        }
+        else if (property.check == "Object")
+        {
+          property.storage = qx.core.propertystorage.ImmutableObject;
+        }
+        else if (property.check == "qx.data.Array")
+        {
+          property.storage = qx.core.propertystorage.ImmutableDataArray;
+        }
+        else
+        {
+          throw new Error(
+            `${key}: ` +
+              "only `check : 'Array'` and `check : 'Object'` " +
+              "properties may have `immutable : 'replace'`.");
+        }
+
+      }
+      else
+      {
+        property.storage = qx.core.propertystorage.Default;
+      }
     }
 
     if (qx.core.Environment.get("qx.debug"))
@@ -1883,7 +1909,7 @@ function _extend(className, config)
                 }
 
                 // Save the (possibly updated) value
-                if (property.readonly)
+                if (property.immutable == "readonly")
                 {
                   throw new Error(
                     `Attempt to set value of readonly property ${prop}`);

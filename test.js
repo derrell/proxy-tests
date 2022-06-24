@@ -113,7 +113,7 @@ qx.Class.define(
       readOnly :
       {
         initFunction : () => 42,
-        readonly : true
+        immutable : "readonly"
       }
     },
 
@@ -653,9 +653,10 @@ qx.Class.define(
     {
       a :
       {
-//        check : "Object",
+        check : "Object",
         initFunction : () => { return {}; },
-        storage : qx.core.propertystorage.ImmutableObject
+        immutable : "replace"
+//        storage : qx.core.propertystorage.ImmutableObject
       }
     }
   });
