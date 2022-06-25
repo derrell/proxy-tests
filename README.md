@@ -23,7 +23,9 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
 - [x] members
 - [x] environment
 - [x] events
-- [x] defer
+- [ ] defer
+  Notes: Call defer() late. See `addPendingDefer` and
+  `executePendingDefers` in original qx.Bootstrap
 - [x] destruct
 - [x] this.constructor
 - [x] annotations
