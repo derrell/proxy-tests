@@ -644,6 +644,18 @@ function define(className, config)
     __validatePropertyDefinitions(className, config);
   }
 
+  // Normalize include to array
+  if (config.include && qx.Bootstrap.getClass(config.include) != "Array")
+  {
+    config.include = [ config.include ];
+  }
+
+  // Normalize implement to array
+  if (config.implement && qx.Bootstrap.getClass(config.implement) != "Array")
+  {
+    config.implement = [ config.imlement ];
+  }
+
   if (! config.extend)
   {
     if (qx.core.Environment.get("qx.debug"))
@@ -733,6 +745,7 @@ function define(className, config)
       });
   }
 
+  // Create the new class
   clazz = _extend(className, config);
 
   // Initialise class and constructor/destructor annotations
@@ -878,596 +891,27 @@ function define(className, config)
       enumerable   : false
     });
 
-
-
-  // Add members
-  for (let key in (config.members || {}))
+  // Members, properties, events, and mixins are only allowed for
+  // non-static classes.
+  if (config.extend)
   {
-    let             member = config.members[key];
-
-    // Annotations are not members
-    if (key.charAt(0) === "@")
+    // Add members
+    if (config.members)
     {
-      let annoKey = key.substring(1);
-      if (member[annoKey] === undefined)
-      {
-        // An annotation for a non-existent member.
-        // SHOULD THIS BE ALLOWED?
-        __attachAnno(clazz, "members", annoKey, member[key]);
-      }
-
-      continue;
+      _addMembers(clazz, config.members, true);
     }
 
-    if (typeof member == "function")
+    // Add properties
+    if (config.properties)
     {
-      // Allow easily identifying this method
-      qx.Bootstrap.setDisplayName(member, className, key);
-
-      if (qx.core.Environment.get("qx.aspects"))
-      {
-        member = qx.core.Aspect.wrap(className, member, key);
-      }
-
-      // Allow base calls
-      if (key in clazz.prototype)
-      {
-        member.base = clazz.prototype[key];
-      }
+      _addProperties(clazz, config.properties, true);
     }
 
-    // Create the storage for this member
-    Object.defineProperty(
-      clazz.prototype,
-      key,
-      {
-        value        : member,
-        writable     : true,
-        configurable : true,
-        enumerable   : true
-      });
-
-    // Attach annotations
-    __attachAnno(clazz, "members", key, config.members["@" + key]);
-  }
-
-  // Add properties
-  let properties = config.properties || {};
-  let groupProperties = {};
-  for (let key in properties)
-  {
-    let             get;
-    let             apply;
-    let             property = properties[key];
-    let             propertyFirstUp = qx.Bootstrap.firstUp(key);
-    let             storage;
-
-    // Handle group properties last so we can ensure group member
-    // properties exist before the group is created
-    if (property.group)
+    // Add events
+    if (config.events)
     {
-      groupProperties[key] = properties[key];
-      continue;
+      _addEvents(clazz, config.events, true);
     }
-
-    // If there's no comparison function specified for this property...
-    if (! property.isEqual)
-    {
-      // ... then create the default comparison function
-      property.isEqual = isEqual;
-    }
-
-    // If there's no storage mechanism specified for this property...
-    if (! property.storage)
-    {
-      // ... then select a storage mechanism for it
-      if (property.immutable == "replace")
-      {
-        if (property.check == "Array")
-        {
-          property.storage = qx.core.propertystorage.ImmutableArray;
-        }
-        else if (property.check == "Object")
-        {
-          property.storage = qx.core.propertystorage.ImmutableObject;
-        }
-        else if (property.check == "qx.data.Array")
-        {
-          property.storage = qx.core.propertystorage.ImmutableDataArray;
-        }
-        else
-        {
-          throw new Error(
-            `${key}: ` +
-              "only `check : 'Array'` and `check : 'Object'` " +
-              "properties may have `immutable : 'replace'`.");
-        }
-
-      }
-      else
-      {
-        property.storage = qx.core.propertystorage.Default;
-      }
-    }
-
-    if (qx.core.Environment.get("qx.debug"))
-    {
-      // FIXME: change this to a test for that the specied storage implements
-      // qx.core.propertystorage.IStorage
-      if (typeof property.storage.init != "function" ||
-          typeof property.storage.get != "function" ||
-          typeof property.storage.set != "function" ||
-          typeof property.storage.dereference != "function")
-      {
-        throw new Error(
-          `${key}: ` +
-            "property storage does not implement " +
-            "qx.core.propertystorage.IStorage");
-      }
-    }
-
-    storage = property.storage;
-
-    // Initialize the property
-    storage.init(key, Object.assign({}, property), clazz);
-
-    // We always generate an event. If the event name isn't specified,
-    // use the default name
-    property.event = property.event || `change${propertyFirstUp}`;
-
-    // There are three values that may be used when `resetProperty` is called:
-    // - the user-assigned value
-    // - a theme's value (if the property is themeable)
-    // - an inherited value (if the property is inheritable)
-    //
-    // Create the legacy names for these values, which are used at
-    // various places in and around the qooxdoo framework code.
-
-    // user-specified
-    Object.defineProperty(
-      clazz.prototype,
-      `$$user_${key}`,
-      {
-        value        : undefined,
-        writable     : true,
-        configurable : false,
-        enumerable   : false
-      });
-
-    // theme-specified
-    if (property.themeable)
-    {
-      Object.defineProperty(
-        clazz.prototype,
-        `$$theme_${key}`,
-        {
-          value        : undefined,
-          writable     : true,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
-    // inheritable
-    if (property.inheritable)
-    {
-      Object.defineProperty(
-        clazz.prototype,
-        `$$inherit_${key}`,
-        {
-          value        : undefined,
-          writable     : true,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
-    if (property.async)
-    {
-      // Obtain the required get function
-      if (typeof property.get == "function")
-      {
-        get = property.get;
-      }
-      else if (typeof property.get == "string")
-      {
-        get = clazz.prototype[property.get];
-      }
-
-      // Obtain the required apply function
-      if (typeof property.apply == "function")
-      {
-        apply = property.apply;
-      }
-      else if (typeof property.apply == "string")
-      {
-        apply = clazz.prototype[property.apply];
-      }
-
-      // Both get and apply must be provided
-      if (typeof get != "function" || typeof apply != "function")
-      {
-        throw new Error(
-          `${key}: ` +
-            `async property requires that both 'get' and 'apply' be provided`);
-      }
-    }
-
-    // Call the factories to generate each of the property functions
-    // for the current property of the class
-    let propertyDescriptor =
-        {
-          // The complete property definition
-          definition : Object.assign({}, property),
-
-          // Property methods
-          get : propertyMethodFactory.get(key, property),
-          set : propertyMethodFactory.set(key, property),
-          reset : propertyMethodFactory.reset(key, property),
-        };
-
-    if (property.inheritable)
-    {
-      Object.assign(
-        propertyDescriptor,
-        {
-          refresh : propertyMethodFactory.refresh(key, property)
-        });
-    }
-
-    if (property.themeable)
-    {
-      Object.assign(
-        propertyDescriptor, 
-        {
-          setThemed : propertyMethodFactory.setThemed(key, property),
-          resetThemed : propertyMethodFactory.resetThemed(key, property)
-        });
-    }
-
-    if (typeof property.init != "undefined" ||
-        typeof property.initFunction == "function")
-    {
-      Object.assign(
-        propertyDescriptor,
-        {
-          init : propertyMethodFactory.init(key, property)
-        });
-    }
-
-    if (property.check == "Boolean")
-    {
-      Object.assign(
-        propertyDescriptor,
-        {
-          is : propertyMethodFactory.is(key, property),
-          toggle : propertyMethodFactory.toggle(key, property)
-        });
-    }
-
-    if (property.async)
-    {
-      Object.assign(
-        propertyDescriptor,
-        {
-          isAsyncSetActive :
-              propertyMethodFactory.isAsyncSetActive(key, property),
-          getAsync : propertyMethodFactory.getAsync(key, property, get),
-          setAsync : propertyMethodFactory.setAsync(key, property, apply)
-        });
-    }
-
-    // Freeze the property descriptor so user doesn't muck it up
-    Object.freeze(propertyDescriptor);
-
-    // Store it in the registry
-    if (clazz.$$propertyDescriptorRegistry)
-    {
-      clazz.$$propertyDescriptorRegistry.register(
-        className, key, propertyDescriptor);
-    }
-
-    // Create the legacy property getter, getPropertyName
-    Object.defineProperty(
-      clazz.prototype,
-      `get${propertyFirstUp}`,
-      {
-        value        : propertyDescriptor.get,
-        writable     : false,
-        configurable : false,
-        enumerable   : false
-      });
-
-    // Create the legacy property setter, setPropertyName.
-    Object.defineProperty(
-      clazz.prototype,
-      `set${propertyFirstUp}`,
-      {
-        value        : propertyDescriptor.set,
-        writable     : false,
-        configurable : false,
-        enumerable   : false
-      });
-
-    // Create this property's resetProperty method
-    Object.defineProperty(
-      clazz.prototype,
-      `reset${propertyFirstUp}`,
-      {
-        value        : propertyDescriptor.reset,
-        writable     : false,
-        configurable : false,
-        enumerable   : false
-      });
-
-    if (property.inheritable)
-    {
-      // Create this property's refreshProperty method
-      Object.defineProperty(
-        clazz.prototype,
-        `refresh${propertyFirstUp}`,
-        {
-          value        : propertyDescriptor.refresh,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
-    if (property.themeable)
-    {
-      // Create this property's setThemedProperty method
-      Object.defineProperty(
-        clazz.prototype,
-        `setThemed${propertyFirstUp}`,
-        {
-          value        : propertyDescriptor.setThemed,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-
-      // Create this property's resetThemedProperty method
-      Object.defineProperty(
-        clazz.prototype,
-        `resetThemed${propertyFirstUp}`,
-        {
-          value        : propertyDescriptor.resetThemed,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
-    // If there's an init or initFunction handler, ...
-    if (typeof property.init != "undefined" ||
-        typeof property.initFunction == "function")
-    {
-      // ... then create initPropertyName
-      Object.defineProperty(
-        clazz.prototype,
-        `init${propertyFirstUp}`,
-        {
-          value        : propertyDescriptor.init,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
-    // If this is a boolean, as indicated by check : "Boolean" ...
-    if (property.check == "Boolean")
-    {
-      // ... then create isPropertyName and togglePropertyName
-      Object.defineProperty(
-        clazz.prototype,
-        `is${propertyFirstUp}`,
-        {
-          value        : propertyDescriptor.is,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-
-      Object.defineProperty(
-        clazz.prototype,
-        `toggle${propertyFirstUp}`,
-        {
-          value        : propertyDescriptor.toggle,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
-    if (property.async)
-    {
-      let             get;
-      let             apply;
-
-      // Create a place to store the current promise for the async setter
-      Object.defineProperty(
-        clazz.prototype,
-        `$$activePromise${propertyFirstUp}`,
-        {
-          value        : null,
-          writable     : true,
-          configurable : false,
-          enumerable   : false
-        });
-
-      // Create a function that tells the user whether there is still
-      // an active async setter running
-      Object.defineProperty(
-        clazz.prototype,
-        `isAsyncSetActive${propertyFirstUp}`,
-        {
-          value        : propertyDescriptor.isAsyncSetActive,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-
-      // Create the async property getter, getPropertyNameAsync
-      Object.defineProperty(
-        clazz.prototype,
-        `get${propertyFirstUp}Async`,
-        {
-          value        : propertyDescriptor.getAsync,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-
-      // Create the async property setter, setPropertyNameAsync.
-      Object.defineProperty(
-        clazz.prototype,
-        `set${propertyFirstUp}Async`,
-        {
-          value        : propertyDescriptor.setAsync,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-
-    // Add the event name for this property to the list of events
-    // fired by this class
-    let eventName = property.event;
-    let events =
-        {
-          [eventName] : "qx.event.type.Data"
-        };
-    __addEvents(clazz, events, true);
-
-    // Add annotations
-    __attachAnno(clazz, "properties", key, property["@"]);
-  }
-
-  // Now handle the group properties we skipped while processing properties
-  for (let key in groupProperties)
-  {
-    let             property = groupProperties[key];
-    let             propertyFirstUp = qx.Bootstrap.firstUp(key);
-    let             allProperties = clazz.$$allProperties;
-
-    if (qx.core.Environment.get("qx.debug"))
-    {
-      // Validate that group contains only existing properties, and if
-      // themeable contains only themeable properties
-      for (let prop of property.group)
-      {
-        if (! (prop in allProperties))
-        {
-          throw new Error(
-            `Property group '${key}': ` +
-              `property '${prop}' does not exist`);
-        }
-
-        if (allProperties[prop].group)
-        {
-          throw new Error(
-            `Property group '${key}': ` +
-              `can not add group '${prop}' to a group`);
-        }
-
-        if (property.themeable && ! allProperties[prop].themeable)
-        {
-          throw new Error(
-            `Property group '${key}': ` +
-              `can not add themeable property '${prop}' to ` +
-              "non-themeable group");
-        }
-      }
-    }
-
-    // Call the factories to generate each of the property functions
-    // for the current property of the class
-    let propertyDescriptor =
-        {
-          // The complete property definition
-          definition : Object.assign({}, property),
-
-          // Property methods
-          set : propertyMethodFactory.groupSet(key, property),
-          reset : propertyMethodFactory.groupReset(key, property),
-        };
-
-    if (property.themeable)
-    {
-      Object.assign(
-        propertyDescriptor,
-        {
-          setThemed : propertyMethodFactory.groupSetThemed(key, property),
-          resetThemed : propertyMethodFactory.groupResetThemed(key, property)
-        });
-    }
-
-    // Freeze the property descriptor so user doesn't muck it up
-    Object.freeze(propertyDescriptor);
-
-    // Store it in the registry
-    if (clazz.$$propertyDescriptorRegistry)
-    {
-      clazz.$$propertyDescriptorRegistry.register(
-        className, key, propertyDescriptor);
-    }
-
-    // Create the property setter, setPropertyName.
-    Object.defineProperty(
-      clazz.prototype,
-      `set${propertyFirstUp}`,
-      {
-        value        : propertyDescriptor.set,
-        writable     : false,
-        configurable : false,
-        enumerable   : false
-      });
-    
-    // Create the property setter, setPropertyName.
-    Object.defineProperty(
-      clazz.prototype,
-      `reset${propertyFirstUp}`,
-      {
-        value        : propertyDescriptor.reset,
-        writable     : false,
-        configurable : false,
-        enumerable   : false
-      });
-    
-    // If group is themeable, add the styler and unstyler
-    if (property.themeable)
-    {
-      Object.defineProperty(
-        clazz.prototype,
-        `setThemed${propertyFirstUp}`,
-        {
-          value        : propertyDescriptor.setThemed,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-      
-      Object.defineProperty(
-        clazz.prototype,
-        `resetThemed${propertyFirstUp}`,
-        {
-          value        : propertyDescriptor.resetThemed,
-          writable     : false,
-          configurable : false,
-          enumerable   : false
-        });
-    }
-  }
-
-  // Add events. These are used for the API Viewer to show what events
-  // are generated by the class, but not otherwise validated in the
-  // code. (It would be very difficult to do so.) It is the
-  // developer's responsibility to keep the event list for a class up
-  // to date with uses of `fireEvent()`, `fireDataEvent(), etc.
-  if (config.events)
-  {
-    __addEvents(clazz, config.events, true);
   }
 
   //
@@ -1978,7 +1422,7 @@ function _extend(className, config)
 
         return proxy;
       },
-      
+
       apply : function(target, _this, args)
       {
         // Call the constructor
@@ -1987,6 +1431,614 @@ function _extend(className, config)
     });
 
   return subclass.prototype.constructor;
+}
+
+/**
+ * Attach members to a class
+ *
+ * @param clazz {Class}
+ *   Class to add members to
+ *
+ * @param members {Map}
+ *   The map of members to attach
+ *
+ * @param patch {Boolean ? false}
+ *   Enable patching
+ */
+function _addMembers(clazz, members, patch)
+{
+  for (let key in members)
+  {
+    let             member = members[key];
+
+    // Annotations are not members
+    if (key.charAt(0) === "@")
+    {
+      let annoKey = key.substring(1);
+      if (member[annoKey] === undefined)
+      {
+        // An annotation for a non-existent member.
+        // SHOULD THIS BE ALLOWED?
+        __attachAnno(clazz, "members", annoKey, member[key]);
+      }
+
+      continue;
+    }
+
+    if (typeof member == "function")
+    {
+      // Allow easily identifying this method
+      qx.Bootstrap.setDisplayName(member, clazz.classname, key);
+
+      if (qx.core.Environment.get("qx.aspects"))
+      {
+        member = qx.core.Aspect.wrap(clazz.classname, member, key);
+      }
+
+      // Allow base calls
+      if (key in clazz.prototype)
+      {
+        member.base = clazz.prototype[key];
+      }
+    }
+
+    // Create the storage for this member
+    Object.defineProperty(
+      clazz.prototype,
+      key,
+      {
+        value        : member,
+        writable     : true,
+        configurable : true,
+        enumerable   : true
+      });
+
+    // Attach annotations
+    __attachAnno(clazz, "members", key, members["@" + key]);
+  }
+}
+
+/**
+ * Attach properties to classes
+ *
+ * @param clazz {Class}
+ *   Class to add the properties to
+ *
+ * @param properties {Map}
+ *   Map of properties
+ *
+ * @param patch {Boolean ? false}
+ *   Overwrite property with the limitations of a property which means you are
+ *   able to refine but not to replace (esp. for new properties)
+ */
+function _addProperties(clazz, properties, patch)
+{
+  let groupProperties = {};
+  for (let key in properties)
+  {
+    let             get;
+    let             apply;
+    let             property = properties[key];
+    let             propertyFirstUp = qx.Bootstrap.firstUp(key);
+    let             storage;
+
+    // Handle group properties last so we can ensure group member
+    // properties exist before the group is created
+    if (property.group)
+    {
+      groupProperties[key] = properties[key];
+      continue;
+    }
+
+    // If there's no comparison function specified for this property...
+    if (! property.isEqual)
+    {
+      // ... then create the default comparison function
+      property.isEqual = isEqual;
+    }
+
+    // If there's no storage mechanism specified for this property...
+    if (! property.storage)
+    {
+      // ... then select a storage mechanism for it
+      if (property.immutable == "replace")
+      {
+        if (property.check == "Array")
+        {
+          property.storage = qx.core.propertystorage.ImmutableArray;
+        }
+        else if (property.check == "Object")
+        {
+          property.storage = qx.core.propertystorage.ImmutableObject;
+        }
+        else if (property.check == "qx.data.Array")
+        {
+          property.storage = qx.core.propertystorage.ImmutableDataArray;
+        }
+        else
+        {
+          throw new Error(
+            `${key}: ` +
+              "only `check : 'Array'` and `check : 'Object'` " +
+              "properties may have `immutable : 'replace'`.");
+        }
+
+      }
+      else
+      {
+        property.storage = qx.core.propertystorage.Default;
+      }
+    }
+
+    if (qx.core.Environment.get("qx.debug"))
+    {
+      // FIXME: change this to a test for that the specied storage implements
+      // qx.core.propertystorage.IStorage
+      if (typeof property.storage.init != "function" ||
+          typeof property.storage.get != "function" ||
+          typeof property.storage.set != "function" ||
+          typeof property.storage.dereference != "function")
+      {
+        throw new Error(
+          `${key}: ` +
+            "property storage does not implement " +
+            "qx.core.propertystorage.IStorage");
+      }
+    }
+
+    storage = property.storage;
+
+    // Initialize the property
+    storage.init(key, Object.assign({}, property), clazz);
+
+    // We always generate an event. If the event name isn't specified,
+    // use the default name
+    property.event = property.event || `change${propertyFirstUp}`;
+
+    // There are three values that may be used when `resetProperty` is called:
+    // - the user-assigned value
+    // - a theme's value (if the property is themeable)
+    // - an inherited value (if the property is inheritable)
+    //
+    // Create the legacy names for these values, which are used at
+    // various places in and around the qooxdoo framework code.
+
+    // user-specified
+    Object.defineProperty(
+      clazz.prototype,
+      `$$user_${key}`,
+      {
+        value        : undefined,
+        writable     : true,
+        configurable : false,
+        enumerable   : false
+      });
+
+    // theme-specified
+    if (property.themeable)
+    {
+      Object.defineProperty(
+        clazz.prototype,
+        `$$theme_${key}`,
+        {
+          value        : undefined,
+          writable     : true,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    // inheritable
+    if (property.inheritable)
+    {
+      Object.defineProperty(
+        clazz.prototype,
+        `$$inherit_${key}`,
+        {
+          value        : undefined,
+          writable     : true,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    if (property.async)
+    {
+      // Obtain the required get function
+      if (typeof property.get == "function")
+      {
+        get = property.get;
+      }
+      else if (typeof property.get == "string")
+      {
+        get = clazz.prototype[property.get];
+      }
+
+      // Obtain the required apply function
+      if (typeof property.apply == "function")
+      {
+        apply = property.apply;
+      }
+      else if (typeof property.apply == "string")
+      {
+        apply = clazz.prototype[property.apply];
+      }
+
+      // Both get and apply must be provided
+      if (typeof get != "function" || typeof apply != "function")
+      {
+        throw new Error(
+          `${key}: ` +
+            `async property requires that both 'get' and 'apply' be provided`);
+      }
+    }
+
+    // Call the factories to generate each of the property functions
+    // for the current property of the class
+    let propertyDescriptor =
+        {
+          // The complete property definition
+          definition : Object.assign({}, property),
+
+          // Property methods
+          get : propertyMethodFactory.get(key, property),
+          set : propertyMethodFactory.set(key, property),
+          reset : propertyMethodFactory.reset(key, property),
+        };
+
+    if (property.inheritable)
+    {
+      Object.assign(
+        propertyDescriptor,
+        {
+          refresh : propertyMethodFactory.refresh(key, property)
+        });
+    }
+
+    if (property.themeable)
+    {
+      Object.assign(
+        propertyDescriptor, 
+        {
+          setThemed : propertyMethodFactory.setThemed(key, property),
+          resetThemed : propertyMethodFactory.resetThemed(key, property)
+        });
+    }
+
+    if (typeof property.init != "undefined" ||
+        typeof property.initFunction == "function")
+    {
+      Object.assign(
+        propertyDescriptor,
+        {
+          init : propertyMethodFactory.init(key, property)
+        });
+    }
+
+    if (property.check == "Boolean")
+    {
+      Object.assign(
+        propertyDescriptor,
+        {
+          is : propertyMethodFactory.is(key, property),
+          toggle : propertyMethodFactory.toggle(key, property)
+        });
+    }
+
+    if (property.async)
+    {
+      Object.assign(
+        propertyDescriptor,
+        {
+          isAsyncSetActive :
+              propertyMethodFactory.isAsyncSetActive(key, property),
+          getAsync : propertyMethodFactory.getAsync(key, property, get),
+          setAsync : propertyMethodFactory.setAsync(key, property, apply)
+        });
+    }
+
+    // Freeze the property descriptor so user doesn't muck it up
+    Object.freeze(propertyDescriptor);
+
+    // Store it in the registry
+    if (clazz.$$propertyDescriptorRegistry)
+    {
+      clazz.$$propertyDescriptorRegistry.register(
+        clazz.classname, key, propertyDescriptor);
+    }
+
+    // Create the legacy property getter, getPropertyName
+    Object.defineProperty(
+      clazz.prototype,
+      `get${propertyFirstUp}`,
+      {
+        value        : propertyDescriptor.get,
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
+    // Create the legacy property setter, setPropertyName.
+    Object.defineProperty(
+      clazz.prototype,
+      `set${propertyFirstUp}`,
+      {
+        value        : propertyDescriptor.set,
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
+    // Create this property's resetProperty method
+    Object.defineProperty(
+      clazz.prototype,
+      `reset${propertyFirstUp}`,
+      {
+        value        : propertyDescriptor.reset,
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
+    if (property.inheritable)
+    {
+      // Create this property's refreshProperty method
+      Object.defineProperty(
+        clazz.prototype,
+        `refresh${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.refresh,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    if (property.themeable)
+    {
+      // Create this property's setThemedProperty method
+      Object.defineProperty(
+        clazz.prototype,
+        `setThemed${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.setThemed,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+
+      // Create this property's resetThemedProperty method
+      Object.defineProperty(
+        clazz.prototype,
+        `resetThemed${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.resetThemed,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    // If there's an init or initFunction handler, ...
+    if (typeof property.init != "undefined" ||
+        typeof property.initFunction == "function")
+    {
+      // ... then create initPropertyName
+      Object.defineProperty(
+        clazz.prototype,
+        `init${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.init,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    // If this is a boolean, as indicated by check : "Boolean" ...
+    if (property.check == "Boolean")
+    {
+      // ... then create isPropertyName and togglePropertyName
+      Object.defineProperty(
+        clazz.prototype,
+        `is${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.is,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+
+      Object.defineProperty(
+        clazz.prototype,
+        `toggle${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.toggle,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    if (property.async)
+    {
+      let             get;
+      let             apply;
+
+      // Create a place to store the current promise for the async setter
+      Object.defineProperty(
+        clazz.prototype,
+        `$$activePromise${propertyFirstUp}`,
+        {
+          value        : null,
+          writable     : true,
+          configurable : false,
+          enumerable   : false
+        });
+
+      // Create a function that tells the user whether there is still
+      // an active async setter running
+      Object.defineProperty(
+        clazz.prototype,
+        `isAsyncSetActive${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.isAsyncSetActive,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+
+      // Create the async property getter, getPropertyNameAsync
+      Object.defineProperty(
+        clazz.prototype,
+        `get${propertyFirstUp}Async`,
+        {
+          value        : propertyDescriptor.getAsync,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+
+      // Create the async property setter, setPropertyNameAsync.
+      Object.defineProperty(
+        clazz.prototype,
+        `set${propertyFirstUp}Async`,
+        {
+          value        : propertyDescriptor.setAsync,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+
+    // Add the event name for this property to the list of events
+    // fired by this class
+    let eventName = property.event;
+    let events =
+        {
+          [eventName] : "qx.event.type.Data"
+        };
+    _addEvents(clazz, events, true);
+
+    // Add annotations
+    __attachAnno(clazz, "properties", key, property["@"]);
+  }
+
+  // Now handle the group properties we skipped while processing properties
+  for (let key in groupProperties)
+  {
+    let             property = groupProperties[key];
+    let             propertyFirstUp = qx.Bootstrap.firstUp(key);
+    let             allProperties = clazz.$$allProperties;
+
+    if (qx.core.Environment.get("qx.debug"))
+    {
+      // Validate that group contains only existing properties, and if
+      // themeable contains only themeable properties
+      for (let prop of property.group)
+      {
+        if (! (prop in allProperties))
+        {
+          throw new Error(
+            `Property group '${key}': ` +
+              `property '${prop}' does not exist`);
+        }
+
+        if (allProperties[prop].group)
+        {
+          throw new Error(
+            `Property group '${key}': ` +
+              `can not add group '${prop}' to a group`);
+        }
+
+        if (property.themeable && ! allProperties[prop].themeable)
+        {
+          throw new Error(
+            `Property group '${key}': ` +
+              `can not add themeable property '${prop}' to ` +
+              "non-themeable group");
+        }
+      }
+    }
+
+    // Call the factories to generate each of the property functions
+    // for the current property of the class
+    let propertyDescriptor =
+        {
+          // The complete property definition
+          definition : Object.assign({}, property),
+
+          // Property methods
+          set : propertyMethodFactory.groupSet(key, property),
+          reset : propertyMethodFactory.groupReset(key, property),
+        };
+
+    if (property.themeable)
+    {
+      Object.assign(
+        propertyDescriptor,
+        {
+          setThemed : propertyMethodFactory.groupSetThemed(key, property),
+          resetThemed : propertyMethodFactory.groupResetThemed(key, property)
+        });
+    }
+
+    // Freeze the property descriptor so user doesn't muck it up
+    Object.freeze(propertyDescriptor);
+
+    // Store it in the registry
+    if (clazz.$$propertyDescriptorRegistry)
+    {
+      clazz.$$propertyDescriptorRegistry.register(
+        clazz.classname, key, propertyDescriptor);
+    }
+
+    // Create the property setter, setPropertyName.
+    Object.defineProperty(
+      clazz.prototype,
+      `set${propertyFirstUp}`,
+      {
+        value        : propertyDescriptor.set,
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
+    // Create the property setter, setPropertyName.
+    Object.defineProperty(
+      clazz.prototype,
+      `reset${propertyFirstUp}`,
+      {
+        value        : propertyDescriptor.reset,
+        writable     : false,
+        configurable : false,
+        enumerable   : false
+      });
+
+    // If group is themeable, add the styler and unstyler
+    if (property.themeable)
+    {
+      Object.defineProperty(
+        clazz.prototype,
+        `setThemed${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.setThemed,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+
+      Object.defineProperty(
+        clazz.prototype,
+        `resetThemed${propertyFirstUp}`,
+        {
+          value        : propertyDescriptor.resetThemed,
+          writable     : false,
+          configurable : false,
+          enumerable   : false
+        });
+    }
+  }
 }
 
 function genericToString()
@@ -2263,7 +2315,7 @@ function firstUp(str)
  * @param events {Map} map of event names the class fires.
  * @param patch {Boolean ? false} Enable redefinition of event type?
  */
-function __addEvents(clazz, events, patch) {
+function _addEvents(clazz, events, patch) {
   let             key;
 
   if (qx.core.Environment.get("qx.debug"))
