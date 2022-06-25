@@ -246,7 +246,7 @@ qx.Bootstrap.define(
         }
 
         // Attach content
-        let list = qx.Mixin.flatten([mixin]);
+        let list = qx.Mixin.flatten( [ mixin ] );
         list.forEach(
           (entry) =>
           {
@@ -265,9 +265,8 @@ qx.Bootstrap.define(
             // Attach members
             if (entry.$$members)
             {
-              this._addMembers(clazz, entry.$$members, patch);
+              this.addMembers(clazz, entry.$$members, patch);
             }
-
           });
 
         // Store mixin reference

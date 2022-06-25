@@ -685,6 +685,42 @@ let o2 = immutableObject.a;
 console.log(`immutable object o2=`, o2);
 assert("immutable object remains unchanged after set", o1 === o2);
 
+qx.Mixin.define(
+  "tester.MMember",
+  {
+    members :
+    {
+      date : new Date()
+    }
+  });
+
+qx.Class.define(
+  "tester.IncludeMember",
+  {
+    extend : tester.Object,
+    include : tester.MMember
+  });
+
+qx.Mixin.define(
+  "tester.MProperty",
+  {
+    properties :
+    {
+      date :
+      {
+        init : new Date(),
+        check : (v) => v instanceof Date
+      }
+    }
+  });
+
+qx.Class.define(
+  "tester.IncludeProperty",
+  {
+    extend : tester.Object,
+    include : tester.MProperty
+  });
+
 
 (async () =>
   {
@@ -1089,6 +1125,22 @@ assert("immutable object remains unchanged after set", o1 === o2);
     {
       assert("property group with mixed themeable/non-themeable fails", true);
     }
+
+    let includesMember = new tester.IncludeMember();
+    assert("in-definition included mixin of member",
+           includesMember.date instanceof Date);
+    let date = includesMember.date;
+    includesMember.date = new Date();
+    assert("in-definition included mixin member change",
+           date !== includesMember.date);
+
+    let includesProperty = new tester.IncludeProperty();
+    assert("in-definition included mixin of property",
+           includesProperty.date instanceof Date);
+    date = includesProperty.date;
+    includesProperty.date = new Date();
+    assert("in-definition included mixin property change",
+           date !== includesProperty.date);
 
     //
     // Keep these delay tests last in the test...

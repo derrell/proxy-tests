@@ -8,4 +8,6 @@ require("./qx.Promise");
 require("./qx.core.propertystorage.ImmutableArray.js");
 require("./qx.core.propertystorage.ImmutableObject.js");
 require("./qx.core.propertystorage.ImmutableDataArray.js");
+require("./qx.core.Environment.js");
+require("./qx.Mixin.js");
 require("./test.js");

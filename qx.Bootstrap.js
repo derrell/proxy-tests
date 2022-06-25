@@ -638,9 +638,9 @@ function define(className, config)
 
   // Process environment
   let environment = config.environment || {};
-  for (let key in config.environment)
+  for (let key in environment)
   {
-    qx.core.Environment.add(key, config.environment[key]);
+    qx.core.Environment.add(key, environment[key]);
   }
 
   if (qx.core.Environment.get("qx.debug"))
@@ -657,7 +657,7 @@ function define(className, config)
   // Normalize implement to array
   if (config.implement && qx.Bootstrap.getClass(config.implement) != "Array")
   {
-    config.implement = [ config.imlement ];
+    config.implement = [ config.implement ];
   }
 
   if (! config.extend)
@@ -921,7 +921,7 @@ function define(className, config)
     // Must be the last here, to detect conflicts
     if (config.include)
     {
-      config.include.forEach(mixin => addMixin(clazz, mixin, false));
+      config.include.forEach(mixin => this.addMixin(clazz, mixin, false));
     }
   }
 
@@ -2245,6 +2245,47 @@ function base(args, varargs)
 }
 
 /**
+ * Returns a function whose "this" is altered.
+ *
+ * *Syntax*
+ *
+ * <pre class='javascript'>
+ * qx.Bootstrap.bind(myFunction, [self, [varargs...]]);
+ * </pre>
+ *
+ * *Example*
+ *
+ * <pre class='javascript'>
+ * function myFunction()
+ * {
+ *   this.setStyle('color', 'red');
+ *   // note that 'this' here refers to myFunction, not an element
+ *   // we'll need to bind this function to the element we want to alter
+ * };
+ *
+ * var myBoundFunction = qx.Bootstrap.bind(myFunction, myElement);
+ * myBoundFunction(); // this will make the element myElement red.
+ * </pre>
+ *
+ * @param func {Function}
+ *   Original function to wrap
+ *
+ * @param self {Object ? null}
+ *   The object that the "this" of the function will refer to.
+ *
+ * @param varargs {arguments ? null}
+ *   The variable number of arguments to pass to the function
+ *
+ * @return {Function}
+ *   The bound function.
+ */
+function bind(func, self, varargs)
+{
+    var fixedArgs = Array.prototype.slice.call(arguments, 2);
+    return func.bind(self, ...fixedArgs);
+}
+
+/**
  * Helper method to handle singletons
  *
  * @return {Object}
@@ -2634,7 +2675,8 @@ define(
         define,
         addMembers,
         addProperties,
-        addEvents
+        addEvents,
+        bind
       },
       qx.Bootstrap)
   });

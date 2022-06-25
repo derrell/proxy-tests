@@ -17,6 +17,9 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
 - [x] extend
 - [ ] implement [Interfaces]
 - [ ] include [Mixins]
+  - [ ] in-definition ("includes" key)
+  - [ ] addition of, via `include()`
+  - [ ] modification of, via``patch()`)
 - [x] construct
 - [x] statics
 - [x] properties
