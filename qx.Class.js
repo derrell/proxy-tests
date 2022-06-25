@@ -176,6 +176,72 @@ qx.Bootstrap.define(
       define : qx.Bootstrap.define,
 
       /**
+       * Include all features of the given mixin into the class. The
+       * mixin must not include any methods or properties that are
+       * already available in the class. This would only be possible
+       * using the {@link #patch} method.
+       *
+       * @param clazz {Class}
+       *   An existing class which should be augmented by including a mixin.
+       *
+       * @param mixin {Mixin}
+       *   The mixin to be included.
+       */
+      include : function(clazz, mixin)
+      {
+        if (qx.core.Environment.get("qx.debug"))
+        {
+          if (! mixin) {
+            throw new Error(
+              `The mixin to include into class ${clazz.classname} ` +
+                "is undefined or null");
+          }
+
+          qx.Mixin.isCompatible(mixin, clazz);
+        }
+
+        qx.Class.addMixin(clazz, mixin, false);
+      },
+
+      /**
+       * Include all features of the given mixin into the class. The
+       * mixin may include features, which are already defined in the
+       * target class. Existing features of equal name will be
+       * overwritten. Please keep in mind that this functionality is
+       * not intended for regular use, but as a formalized way (and a
+       * last resort) in order to patch existing classes.
+       *
+       * <b>WARNING</b>: You may break working classes and features.
+       *
+       * @param clazz {Class}
+       *   An existing class which should be modified by including a mixin.
+       *
+       * @param mixin {Mixin}
+       *   The mixin to be included.
+       *
+       * @return {Class}
+       *   The new class definition
+       */
+      patch : function(clazz, mixin)
+      {
+        if (qx.core.Environment.get("qx.debug"))
+        {
+          if (! mixin) {
+            throw new Error(
+              `The mixin to patch class ${clazz.classname} ` +
+                "is undefined or null");
+          }
+
+          qx.Mixin.isCompatible(mixin, clazz);
+        }
+
+        qx.Class.addMixin(clazz, mixin, true);
+        return qx.Class.getByName(clazz.classname);
+      },
+
+
+
+      /**
        * Attach members to a class
        *
        * @param clazz {Class}

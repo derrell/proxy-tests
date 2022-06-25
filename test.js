@@ -703,7 +703,7 @@ qx.Mixin.define(
   {
     members :
     {
-      date : new Date()
+      dateMember : new Date()
     }
   });
 
@@ -719,7 +719,7 @@ qx.Mixin.define(
   {
     properties :
     {
-      date :
+      dateProp :
       {
         init : new Date(),
         check : (v) => v instanceof Date
@@ -732,6 +732,31 @@ qx.Class.define(
   {
     extend : tester.Object,
     include : tester.MProperty
+  });
+
+qx.Class.define(
+  "tester.ReadyForInclude",
+  {
+    extend : tester.Object
+  });
+
+qx.Class.define(
+  "tester.ReadyForPatch",
+  {
+    extend : tester.Object,
+
+    members :
+    {
+      dateMember : "1 Jan 1970"
+    },
+
+    properties :
+    {
+      dateProp :
+      {
+        init : "2 Jan 1970"
+      }
+    }
   });
 
 
@@ -1139,21 +1164,32 @@ qx.Class.define(
       assert("property group with mixed themeable/non-themeable fails", true);
     }
 
+    // Test the "include" key in a class configuration
     let includesMember = new tester.IncludeMember();
     assert("in-definition included mixin of member",
-           includesMember.date instanceof Date);
-    let date = includesMember.date;
-    includesMember.date = new Date();
+           includesMember.dateMember instanceof Date);
+    let date = includesMember.dateMember;
+    includesMember.dateMember = new Date();
     assert("in-definition included mixin member change",
-           date !== includesMember.date);
+           date !== includesMember.dateMember);
 
     let includesProperty = new tester.IncludeProperty();
     assert("in-definition included mixin of property",
-           includesProperty.date instanceof Date);
-    date = includesProperty.date;
-    includesProperty.date = new Date();
+           includesProperty.dateProp instanceof Date);
+    date = includesProperty.dateProp;
+    includesProperty.dateProp = new Date();
     assert("in-definition included mixin property change",
-           date !== includesProperty.date);
+           date !== includesProperty.dateProp);
+
+    // Test qx.Class.include() and qx.Class.patch()
+    qx.Class.include(tester.ReadyForInclude, tester.MMember);
+    qx.Class.include(tester.ReadyForInclude, tester.MProperty);
+
+    let readyForInclude = new tester.ReadyForInclude();
+    assert("member available after include()",
+           readyForInclude.dateMember instanceof Date);
+    assert("property available after include()",
+           readyForInclude.dateProp instanceof Date);
 
     //
     // Keep these delay tests last in the test...

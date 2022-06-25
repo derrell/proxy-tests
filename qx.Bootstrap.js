@@ -1458,9 +1458,57 @@ function _extend(className, config)
  */
 function addMembers(clazz, members, patch)
 {
+  // If called via `include()` or `patch()`, then clazz is the proxy
+  // object, not the underlying object in which we want to modify the
+  // prototype. Ascertain that now, and reset clazz.
+  // if (clazz.$$constructor)
+  // {
+  //   clazz = clazz.$$constructor;
+  // }
+
   for (let key in members)
   {
     let             member = members[key];
+    let             proto = clazz.prototype;
+
+    if (qx.core.Environment.get("qx.debug"))
+    {
+      if (key.charAt(0) === '@')
+      {
+        var annoKey = key.substring(1);
+        if (members[annoKey] === undefined && proto[annoKey] === undefined)
+        {
+          throw new Error(
+            `Annotation for ${annoKey} of Class ${clazz.classname} ` +
+              "does not exist");
+        }
+
+        if (key.charAt(1) === "_" && key.charAt(2) === "_")
+        {
+          throw new Error(
+            `Cannot annotate private member ${key.substring(1)} ` +
+              `of Class ${clazz.classname}`);
+        }
+      }
+      else
+      {
+        if (proto[key] !== undefined &&
+            key.charAt(0) === "_" &&
+            key.charAt(1) === "_")
+        {
+          throw new Error(
+            `Overwriting private member ${key} of Class ${clazz.classname} ` +
+              "is not allowed");
+        }
+
+        if (patch !== true && proto.hasOwnProperty(key))
+        {
+          throw new Error(
+            `Overwriting member ${key} of Class ${clazz.classame} ` +
+              "is not allowed");
+        }
+      }
+    }
 
     // Annotations are not members
     if (key.charAt(0) === "@")
@@ -1468,8 +1516,7 @@ function addMembers(clazz, members, patch)
       let annoKey = key.substring(1);
       if (member[annoKey] === undefined)
       {
-        // An annotation for a non-existent member.
-        // SHOULD THIS BE ALLOWED?
+        // An annotation for a superclass' member
         __attachAnno(clazz, "members", annoKey, member[key]);
       }
 
@@ -1494,6 +1541,7 @@ function addMembers(clazz, members, patch)
     }
 
     // Create the storage for this member
+    patch && delete clazz.prototype[key];
     Object.defineProperty(
       clazz.prototype,
       key,
@@ -1615,6 +1663,7 @@ function addProperties(clazz, properties, patch)
     // various places in and around the qooxdoo framework code.
 
     // user-specified
+    patch && delete clazz.prototype[`$$user_${key}`];
     Object.defineProperty(
       clazz.prototype,
       `$$user_${key}`,
@@ -1628,6 +1677,7 @@ function addProperties(clazz, properties, patch)
     // theme-specified
     if (property.themeable)
     {
+      patch && delete clazz.prototype[`$$theme_${key}`];
       Object.defineProperty(
         clazz.prototype,
         `$$theme_${key}`,
@@ -1642,6 +1692,7 @@ function addProperties(clazz, properties, patch)
     // inheritable
     if (property.inheritable)
     {
+      patch && delete clazz.prototype[`$$inherit_${key}`];
       Object.defineProperty(
         clazz.prototype,
         `$$inherit_${key}`,
@@ -1759,6 +1810,7 @@ function addProperties(clazz, properties, patch)
     }
 
     // Create the legacy property getter, getPropertyName
+    patch && delete clazz.prototype[`get${propertyFirstUp}`];
     Object.defineProperty(
       clazz.prototype,
       `get${propertyFirstUp}`,
@@ -1770,6 +1822,7 @@ function addProperties(clazz, properties, patch)
       });
 
     // Create the legacy property setter, setPropertyName.
+    patch && delete clazz.prototype[`set${propertyFirstUp}`];
     Object.defineProperty(
       clazz.prototype,
       `set${propertyFirstUp}`,
@@ -1781,6 +1834,7 @@ function addProperties(clazz, properties, patch)
       });
 
     // Create this property's resetProperty method
+    patch && delete clazz.prototype[`reset${propertyFirstUp}`];
     Object.defineProperty(
       clazz.prototype,
       `reset${propertyFirstUp}`,
@@ -1794,6 +1848,7 @@ function addProperties(clazz, properties, patch)
     if (property.inheritable)
     {
       // Create this property's refreshProperty method
+      patch && delete clazz.prototype[`refresh${propertyFirstUp}`];
       Object.defineProperty(
         clazz.prototype,
         `refresh${propertyFirstUp}`,
@@ -1808,6 +1863,7 @@ function addProperties(clazz, properties, patch)
     if (property.themeable)
     {
       // Create this property's setThemedProperty method
+      patch && delete clazz.prototype[`setThemed${propertyFirstUp}`];
       Object.defineProperty(
         clazz.prototype,
         `setThemed${propertyFirstUp}`,
@@ -1819,6 +1875,7 @@ function addProperties(clazz, properties, patch)
         });
 
       // Create this property's resetThemedProperty method
+      patch && delete clazz.prototype[`resetThemed${propertyFirstUp}`];
       Object.defineProperty(
         clazz.prototype,
         `resetThemed${propertyFirstUp}`,
@@ -1835,6 +1892,7 @@ function addProperties(clazz, properties, patch)
         typeof property.initFunction == "function")
     {
       // ... then create initPropertyName
+      patch && delete clazz.prototype[`init${propertyFirstUp}`];
       Object.defineProperty(
         clazz.prototype,
         `init${propertyFirstUp}`,
@@ -1850,6 +1908,7 @@ function addProperties(clazz, properties, patch)
     if (property.check == "Boolean")
     {
       // ... then create isPropertyName and togglePropertyName
+      patch && delete clazz.prototype[`is${propertyFirstUp}`];
       Object.defineProperty(
         clazz.prototype,
         `is${propertyFirstUp}`,
@@ -1860,6 +1919,7 @@ function addProperties(clazz, properties, patch)
           enumerable   : false
         });
 
+      patch && delete clazz.prototype[`toggle${propertyFirstUp}`];
       Object.defineProperty(
         clazz.prototype,
         `toggle${propertyFirstUp}`,
@@ -1877,6 +1937,7 @@ function addProperties(clazz, properties, patch)
       let             apply;
 
       // Create a place to store the current promise for the async setter
+      patch && delete clazz.prototype[`$$activePromises${propertyFirstUp}`];
       Object.defineProperty(
         clazz.prototype,
         `$$activePromise${propertyFirstUp}`,
@@ -1889,6 +1950,7 @@ function addProperties(clazz, properties, patch)
 
       // Create a function that tells the user whether there is still
       // an active async setter running
+      patch && delete clazz.prototype[`isAsyncSetActive${propertyFirstUp}`];
       Object.defineProperty(
         clazz.prototype,
         `isAsyncSetActive${propertyFirstUp}`,
@@ -1900,6 +1962,7 @@ function addProperties(clazz, properties, patch)
         });
 
       // Create the async property getter, getPropertyNameAsync
+      patch && delete clazz.prototype[`get${propertyFirstUp}Async`];
       Object.defineProperty(
         clazz.prototype,
         `get${propertyFirstUp}Async`,
@@ -1911,6 +1974,7 @@ function addProperties(clazz, properties, patch)
         });
 
       // Create the async property setter, setPropertyNameAsync.
+      patch && delete clazz.prototype[`set${propertyFirstUp}Async`];
       Object.defineProperty(
         clazz.prototype,
         `set${propertyFirstUp}Async`,
