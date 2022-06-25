@@ -23,7 +23,7 @@ qx.Interface.define(
 
     statics :
     {
-      init(propertyName, property, clazz)
+      init(prop, property, clazz)
       {
       },
 

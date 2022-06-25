@@ -160,6 +160,40 @@ qx.Class.define(
 let subclassStorage;
 
 qx.Class.define(
+  "tester.ExternalStorage",
+  {
+    extend : tester.Object,
+//    implement : qx.core.propertystorage.IStorage,
+
+    statics :
+    {
+      init(prop, property)
+      {
+        subclassStorage =
+          {
+            externallyStored : 0
+          };
+      },
+
+      get(prop)
+      {
+        console.log("in externallyStored getter");
+        return subclassStorage[prop];
+      },
+
+      set(prop, value)
+      {
+        console.log("in externallyStored setter");
+        subclassStorage[prop] = value;
+      },
+
+      dereference(prop, property)
+      {
+      }
+    }
+  });
+
+qx.Class.define(
   "tester.Subclass",
   {
     extend : tester.Superclass,
@@ -207,28 +241,7 @@ qx.Class.define(
       externallyStored :
       {
         init : 10,
-        storage :
-        {
-          init(propertyName, property)
-          {
-            subclassStorage =
-              {
-                externallyStored : 0
-              };
-          },
-
-          get(prop)
-          {
-            console.log("in externallyStored getter");
-            return subclassStorage[prop];
-          },
-
-          set(prop, value)
-          {
-            console.log("in externallyStored setter");
-            subclassStorage[prop] = value;
-          }
-        }
+        storage : tester.ExternalStorage
       },
 
       delay :
