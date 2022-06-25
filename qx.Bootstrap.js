@@ -20,17 +20,21 @@
 
 ************************************************************************ */
 
-window = globalThis;
+window = typeof window != "undefined" ? window : globalThis;
 
 // Bootstrap the Bootstrap static class
 qx =
   {
+    $$namespaceRoot : window,
+
     Bootstrap :
     {
       genericToString,
       createNamespace,
+      setRoot,
       getDisplayName,
       setDisplayName,
+      setDisplayNames,
       base,
       getClass,
       isString,
@@ -898,19 +902,26 @@ function define(className, config)
     // Add members
     if (config.members)
     {
-      _addMembers(clazz, config.members, true);
+      addMembers(clazz, config.members, false);
     }
 
     // Add properties
     if (config.properties)
     {
-      _addProperties(clazz, config.properties, true);
+      addProperties(clazz, config.properties, false);
     }
 
     // Add events
     if (config.events)
     {
-      _addEvents(clazz, config.events, true);
+      addEvents(clazz, config.events, false);
+    }
+
+    // Include mixins
+    // Must be the last here, to detect conflicts
+    if (config.include)
+    {
+      config.include.forEach(mixin => addMixin(clazz, mixin, false));
     }
   }
 
@@ -1445,7 +1456,7 @@ function _extend(className, config)
  * @param patch {Boolean ? false}
  *   Enable patching
  */
-function _addMembers(clazz, members, patch)
+function addMembers(clazz, members, patch)
 {
   for (let key in members)
   {
@@ -1511,7 +1522,7 @@ function _addMembers(clazz, members, patch)
  *   Overwrite property with the limitations of a property which means you are
  *   able to refine but not to replace (esp. for new properties)
  */
-function _addProperties(clazz, properties, patch)
+function addProperties(clazz, properties, patch)
 {
   let groupProperties = {};
   for (let key in properties)
@@ -1918,7 +1929,7 @@ function _addProperties(clazz, properties, patch)
         {
           [eventName] : "qx.event.type.Data"
         };
-    _addEvents(clazz, events, true);
+    addEvents(clazz, events, true);
 
     // Add annotations
     __attachAnno(clazz, "properties", key, property["@"]);
@@ -2041,6 +2052,94 @@ function _addProperties(clazz, properties, patch)
   }
 }
 
+/**
+ * Attach events to the class
+ *
+ * @param clazz {Class}
+ *   Class to add the events to
+ *
+ * @param events {Map}
+ *   Map of event names the class fires
+ *
+ * @param patch {Boolean ? false}
+ *   Enable redefinition of event type?
+ */
+function addEvents(clazz, events, patch)
+{
+  let             key;
+
+  if (qx.core.Environment.get("qx.debug"))
+  {
+    if (typeof events !== "object" ||
+        qx.Bootstrap.getClass(events) === "Array")
+    {
+      throw new Error(
+        clazz.classname + ": the events must be defined as map!");
+    }
+
+    for (key in events)
+    {
+      if (typeof events[key] !== "string")
+      {
+        throw new Error(
+          clazz.classname +
+            "/" +
+            key +
+            ": the event value needs to be a string with the class name " +
+            "of the event object which will be fired.");
+      }
+    }
+
+    // Compare old and new event type/value if patching is disabled
+    if (clazz.$$events && patch !== true)
+    {
+      for (key in events)
+      {
+        if (clazz.$$events[key] !== undefined &&
+            clazz.$$events[key] !== events[key])
+        {
+          throw new Error(
+            clazz.classname +
+              "/" +
+              key +
+              ": the event value/type cannot be changed from " +
+              clazz.$$events[key] +
+              " to " +
+              events[key]);
+        }
+      }
+    }
+  }
+
+  if (clazz.$$events)
+  {
+    for (key in events)
+    {
+      clazz.$$events[key] = events[key];
+    }
+  }
+  else
+  {
+    clazz.$$events = events;
+  }
+}
+
+// Dummy function addMixin. This one is never called, as no class
+// defined with qx.Bootstrap.define() has any mixins. The real one is
+// defined in qx.Class
+function addMixin()
+{
+  throw new Error("qx.Bootstrap.addMixin called; should not have been");
+}
+
+/**
+ * This method will be attached to all classes to return a nice
+ * identifier for them.
+ *
+ * @internal
+ * @signature function()
+ * @return {String} The class identifier
+ */
 function genericToString()
 {
   return `[Class ${this.classname}]`;
@@ -2076,6 +2175,20 @@ function createNamespace(name, object)
   return part;
 }
 
+/**
+ * Offers the ability to change the root for creating namespaces from
+ * window to whatever object is given.
+ *
+ * @param root {Object}
+ *   The root to use.
+ *
+ * @internal
+ */
+function setRoot(root)
+{
+  qx.$$namespaceRoot = root;
+}
+
 function getDisplayName(f)
 {
   return f.$$displayName || "<non-qooxdoo>";
@@ -2090,6 +2203,19 @@ function setDisplayName(f, classname, name)
   else
   {
     f.$$displayName = `${classname}()`;
+  }
+}
+
+function setDisplayNames(functionMap, classname)
+{
+  for (let name in functionMap)
+  {
+    let f = functionMap[name];
+
+    if (f instanceof Function)
+    {
+      f.$$displayName = `${classname}.${f.name || name}()`;
+    }
   }
 }
 
@@ -2121,8 +2247,10 @@ function base(args, varargs)
 /**
  * Helper method to handle singletons
  *
+ * @return {Object}
+ *   The singleton instance
+ *
  * @internal
- * @return {Object} The singleton instance
  */
 function getInstance()
 {
@@ -2160,8 +2288,11 @@ function getInstance()
  * http://perfectionkills.com/instanceof-considered-harmful-or-how-to-write-a-robust-isarray/
  * for details.
  *
- * @param value {var} value to get the class for
- * @return {String} the internal class of the value
+ * @param value {var}
+ *   value to get the class for
+ *
+ * @return {String}
+ *   The internal class of the value
  */
 function getClass(value)
 {
@@ -2184,8 +2315,11 @@ function getClass(value)
 /**
  * Whether the value is a string.
  *
- * @param value {var} Value to check.
- * @return {Boolean} Whether the value is a string.
+ * @param value {var}
+ *   Value to check.
+ *
+ * @return {Boolean}
+ *   Whether the value is a string.
  */
 function isString(value) {
   // Added "value !== null" because IE throws an exception "Object expected"
@@ -2306,72 +2440,6 @@ function isQxCoreObject(object)
 function firstUp(str)
 {
   return str.charAt(0).toUpperCase() + str.substr(1);
-}
-
-/**
- * Attach events to the class
- *
- * @param clazz {Class} class to add the events to
- * @param events {Map} map of event names the class fires.
- * @param patch {Boolean ? false} Enable redefinition of event type?
- */
-function _addEvents(clazz, events, patch) {
-  let             key;
-
-  if (qx.core.Environment.get("qx.debug"))
-  {
-    if (typeof events !== "object" ||
-        qx.Bootstrap.getClass(events) === "Array")
-    {
-      throw new Error(
-        clazz.classname + ": the events must be defined as map!");
-    }
-
-    for (key in events)
-    {
-      if (typeof events[key] !== "string")
-      {
-        throw new Error(
-          clazz.classname +
-            "/" +
-            key +
-            ": the event value needs to be a string with the class name " +
-            "of the event object which will be fired.");
-      }
-    }
-
-    // Compare old and new event type/value if patching is disabled
-    if (clazz.$$events && patch !== true)
-    {
-      for (key in events)
-      {
-        if (clazz.$$events[key] !== undefined &&
-            clazz.$$events[key] !== events[key])
-        {
-          throw new Error(
-            clazz.classname +
-              "/" +
-              key +
-              ": the event value/type cannot be changed from " +
-              clazz.$$events[key] +
-              " to " +
-              events[key]);
-        }
-      }
-    }
-  }
-
-  if (clazz.$$events)
-  {
-    for (key in events)
-    {
-      clazz.$$events[key] = events[key];
-    }
-  }
-  else
-  {
-    clazz.$$events = events;
-  }
 }
 
 /**
@@ -2496,5 +2564,77 @@ define(
   "qx.Bootstrap",
   {
     type : "static",
-    statics : Object.assign({ define }, qx.Bootstrap)
+    statics : Object.assign(
+      {
+        /** Timestamp of qooxdoo based application startup */
+        LOADSTART : qx.$$start || new Date(),
+
+        /**
+         * Mapping for early use of the qx.debug environment setting.
+         */
+        DEBUG : (
+          function()
+          {
+            // make sure to reflect all changes here to the environment class!
+            var debug = true;
+            if (qx.$$environment && qx.$$environment["qx.debug"] === false)
+            {
+              debug = false;
+            }
+
+            return debug;
+          })(),
+
+        /**
+         * Minimal accessor API for the environment settings given from
+         * the generator.
+         *
+         * WARNING: This method only should be used if the {@link
+         * qx.core.Environment} class is not loaded!
+         *
+         * @param key {String}
+         *   The key to get the value from.
+         *
+         * @return {var}
+         *   The value of the setting or <code>undefined</code>.
+         */
+        getEnvironmentSetting : function(key)
+        {
+          if (qx.$$environment)
+          {
+            return qx.$$environment[key];
+          }
+
+          return undefined;
+        },
+
+        /**
+         * Minimal mutator for the environment settings given from the
+         * generator. It checks for the existence of the environment settings
+         * and sets the key if its not given from the generator. If a setting
+         * is available from the generator, the setting will be ignored.
+         *
+         * WARNING: This method only should be used if the
+         * {@link qx.core.Environment} class is not loaded!
+         *
+         * @param key {String} The key of the setting.
+         * @param value {var} The value for the setting.
+         */
+        setEnvironmentSetting : function(key, value)
+        {
+         if (!qx.$$environment) {
+           qx.$$environment = {};
+         }
+         if (qx.$$environment[key] === undefined) {
+           qx.$$environment[key] = value;
+         }
+       },
+
+
+        define,
+        addMembers,
+        addProperties,
+        addEvents
+      },
+      qx.Bootstrap)
   });
