@@ -1,3 +1,19 @@
+function assert(message, assertionSuccess)
+{
+  console.log(
+    (assertionSuccess ? "OK  " : "FAIL") +
+      " " +
+      message);
+
+  if (! assertionSuccess)
+  {
+    ++assert.failures;
+  }
+}
+
+assert.failures = 0;
+
+
 qx.Class.define(
   "tester.Object",
   {
@@ -1100,13 +1116,9 @@ assert("immutable object remains unchanged after set", o1 === o2);
     console.log("returned from delay getter");
     assert("async getter delays more than 1 second",
            new Date().getTime() > startTime.getTime() + 1000);
+
+    console.log(`\nTest failures: ${assert.failures}`);
+    console.log(
+      "(Expect one failure right now, for deprecated " +
+        "member creation prevention)");
   })();
-
-function assert(message, assertionSuccess)
-{
-  console.log(
-    (assertionSuccess ? "OK  " : "FAIL") +
-      " " +
-      message);
-}
-
