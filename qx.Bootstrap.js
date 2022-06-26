@@ -29,6 +29,9 @@ qx =
 
     Bootstrap :
     {
+      /** @type {Map} Stores all defined classes */
+      $$registry : {},
+
       genericToString,
       createNamespace,
       setRoot,
@@ -37,6 +40,7 @@ qx =
       setDisplayNames,
       base,
       getClass,
+      getByName,
       isString,
       isArray,
       isObject,
@@ -1032,6 +1036,9 @@ function define(className, config)
     config.defer(clazz, clazz.prototype, Object.assign({}, config.properties));
   }
 
+  // Store class reference in global class registry
+  qx.Bootstrap.$$registry[className] = clazz;
+
   return clazz;
 }
 
@@ -1817,7 +1824,7 @@ function addProperties(clazz, properties, patch)
       {
         value        : propertyDescriptor.get,
         writable     : false,
-        configurable : false,
+        configurable : true,
         enumerable   : false
       });
 
@@ -1829,7 +1836,7 @@ function addProperties(clazz, properties, patch)
       {
         value        : propertyDescriptor.set,
         writable     : false,
-        configurable : false,
+        configurable : true,
         enumerable   : false
       });
 
@@ -1841,7 +1848,7 @@ function addProperties(clazz, properties, patch)
       {
         value        : propertyDescriptor.reset,
         writable     : false,
-        configurable : false,
+        configurable : true,
         enumerable   : false
       });
 
@@ -1855,7 +1862,7 @@ function addProperties(clazz, properties, patch)
         {
           value        : propertyDescriptor.refresh,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
     }
@@ -1870,7 +1877,7 @@ function addProperties(clazz, properties, patch)
         {
           value        : propertyDescriptor.setThemed,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
 
@@ -1882,7 +1889,7 @@ function addProperties(clazz, properties, patch)
         {
           value        : propertyDescriptor.resetThemed,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
     }
@@ -1899,7 +1906,7 @@ function addProperties(clazz, properties, patch)
         {
           value        : propertyDescriptor.init,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
     }
@@ -1915,7 +1922,7 @@ function addProperties(clazz, properties, patch)
         {
           value        : propertyDescriptor.is,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
 
@@ -1926,7 +1933,7 @@ function addProperties(clazz, properties, patch)
         {
           value        : propertyDescriptor.toggle,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
     }
@@ -1944,7 +1951,7 @@ function addProperties(clazz, properties, patch)
         {
           value        : null,
           writable     : true,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
 
@@ -1957,7 +1964,7 @@ function addProperties(clazz, properties, patch)
         {
           value        : propertyDescriptor.isAsyncSetActive,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
 
@@ -1969,7 +1976,7 @@ function addProperties(clazz, properties, patch)
         {
           value        : propertyDescriptor.getAsync,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
 
@@ -1981,7 +1988,7 @@ function addProperties(clazz, properties, patch)
         {
           value        : propertyDescriptor.setAsync,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
     }
@@ -2069,47 +2076,51 @@ function addProperties(clazz, properties, patch)
     }
 
     // Create the property setter, setPropertyName.
+    patch && delete clazz.prototype[`set${propertyFirstUp}`];
     Object.defineProperty(
       clazz.prototype,
       `set${propertyFirstUp}`,
       {
         value        : propertyDescriptor.set,
         writable     : false,
-        configurable : false,
+        configurable : true,
         enumerable   : false
       });
 
     // Create the property setter, setPropertyName.
+    patch && delete clazz.prototype[`reset${propertyFirstUp}`];
     Object.defineProperty(
       clazz.prototype,
       `reset${propertyFirstUp}`,
       {
         value        : propertyDescriptor.reset,
         writable     : false,
-        configurable : false,
+        configurable : true,
         enumerable   : false
       });
 
     // If group is themeable, add the styler and unstyler
     if (property.themeable)
     {
+      patch && delete clazz.prototype[`setThemed${propertyFirstUp}`];
       Object.defineProperty(
         clazz.prototype,
         `setThemed${propertyFirstUp}`,
         {
           value        : propertyDescriptor.setThemed,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
 
+      patch && delete clazz.prototype[`resetThemed${propertyFirstUp}`];
       Object.defineProperty(
         clazz.prototype,
         `resetThemed${propertyFirstUp}`,
         {
           value        : propertyDescriptor.resetThemed,
           writable     : false,
-          configurable : false,
+          configurable : true,
           enumerable   : false
         });
     }
@@ -2416,6 +2427,21 @@ function getClass(value)
     qx.Bootstrap.__classToTypeMap[classString] || classString.slice(8, -1)
   );
 }
+
+/**
+ * Find a class by its name
+ *
+ * @param name {String}
+ *   class name to resolve
+ *
+ * @return {Class}
+ *   The class
+ */
+function getByName(name)
+{
+  return qx.Bootstrap.$$registry[name];
+}
+
 
 /**
  * Whether the value is a string.

@@ -349,6 +349,19 @@ qx.Bootstrap.define(
       },
 
       /**
+       * Find a class by its name
+       *
+       * @signature function(name)
+       *
+       * @param name {String}
+       *   Class name to resolve
+       *
+       * @return {Class}
+       *   The class
+       */
+      getByName : qx.Bootstrap.getByName,
+
+      /**
        * Returns the class or one of its superclasses which contains the
        * declaration for the given mixin. Returns null if the mixin is not
        * specified anywhere.

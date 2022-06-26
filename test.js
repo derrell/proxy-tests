@@ -1181,7 +1181,7 @@ qx.Class.define(
     assert("in-definition included mixin property change",
            date !== includesProperty.dateProp);
 
-    // Test qx.Class.include() and qx.Class.patch()
+    // Test qx.Class.include()
     qx.Class.include(tester.ReadyForInclude, tester.MMember);
     qx.Class.include(tester.ReadyForInclude, tester.MProperty);
 
@@ -1190,6 +1190,16 @@ qx.Class.define(
            readyForInclude.dateMember instanceof Date);
     assert("property available after include()",
            readyForInclude.dateProp instanceof Date);
+
+    // Test qx.Class.patch()
+    qx.Class.patch(tester.ReadyForPatch, tester.MMember);
+    qx.Class.patch(tester.ReadyForPatch, tester.MProperty);
+
+    let readyForPatch = new tester.ReadyForPatch();
+    assert("member available after patch()",
+           readyForPatch.dateMember instanceof Date);
+    assert("property available after patch()",
+           readyForPatch.dateProp instanceof Date);
 
     //
     // Keep these delay tests last in the test...

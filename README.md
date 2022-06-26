@@ -10,16 +10,18 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
   - `node boot.js`
 
 # Legacy Class features currently implemented
+- [x] define
+- [ ] undefine
 - [x] type
   - [x] abstract
   - [x] static
   - [x] singleton
 - [x] extend
 - [ ] implement [Interfaces]
-- [ ] include [Mixins]
-  - [ ] in-definition ("includes" key)
-  - [ ] addition of, via `include()`
-  - [ ] modification of, via``patch()`)
+- [x] include [Mixins]
+  - [x] in-definition ("includes" key)
+  - [x] addition of, via `include()`
+  - [x] modification of, via``patch()`)
 - [x] construct
 - [x] statics
 - [x] properties
