@@ -17,7 +17,7 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
   - [x] static
   - [x] singleton
 - [x] extend
-- [ ] implement [Interfaces]
+- [x] implement [Interfaces]
 - [x] include [Mixins]
   - [x] in-definition ("includes" key)
   - [x] addition of, via `include()`
