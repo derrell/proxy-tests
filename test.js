@@ -760,6 +760,7 @@ qx.Class.define(
   });
 
 
+
 (async () =>
   {
     // validate toString() of class definition
@@ -1200,6 +1201,36 @@ qx.Class.define(
            readyForPatch.dateMember instanceof Date);
     assert("property available after patch()",
            readyForPatch.dateProp instanceof Date);
+
+    try
+    {
+      qx.Interface.define(
+        "tester.IInterfaceTest",
+        {
+          members :
+          {
+            x : 42
+          }
+        });
+
+      qx.Class.define(
+        "tester.InterfaceTestFailMember",
+        {
+          extend : tester.Object,
+
+          environment :
+          {
+            "qx.debug" : true
+          },
+
+          implement : tester.IInterfaceTest
+        });
+      assert("interface detects missing member variable", false);
+    }
+    catch(e)
+    {
+      assert("interface detects missing member variable", true);
+    }
 
     //
     // Keep these delay tests last in the test...

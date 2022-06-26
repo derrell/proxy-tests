@@ -349,6 +349,83 @@ qx.Bootstrap.define(
       },
 
       /**
+       * Add a single interface to a class
+       *
+       * @param clazz {Class} class to add interface to
+       * @param iface {Interface} the Interface to add
+       */
+      addInterface : function(clazz, iface)
+      {
+        if (qx.core.Environment.get("qx.debug"))
+        {
+          if (! clazz || ! iface)
+          {
+            throw new Error("Incomplete parameters");
+          }
+
+          // This differs from mixins, we only check if the interface
+          // is already directly used by this class. It is allowed
+          // however, to have an interface included multiple times by
+          // extends in the interfaces etc.
+          if (this.hasOwnInterface(clazz, iface))
+          {
+            throw new Error(
+              `Interface ${iface.name} is already used by ` +
+                `Class ${clazz.classname}`);
+          }
+
+          // Check interface and wrap members
+          if (clazz.$$classtype !== "abstract")
+          {
+            qx.Interface.assert(clazz, iface, true);
+          }
+        }
+
+        // Store interface reference
+        let list = qx.Interface.flatten([iface]);
+        if (clazz.$$implements)
+        {
+          clazz.$$implements.push(iface);
+          clazz.$$flatImplements.push.apply(clazz.$$flatImplements, list);
+        }
+        else
+        {
+          clazz.$$implements = [iface];
+          clazz.$$flatImplements = list;
+        }
+      },
+
+      /**
+       * Validates the interfaces required by abstract base classes
+       *
+       * @signature function(clazz)
+       *
+       * @param clazz {Class}
+       *   The configured class.
+       */
+      validateAbstractInterfaces : function(clazz)
+      {
+        let superclass = clazz.superclass;
+        while (superclass)
+        {
+          if (superclass.$$classtype !== "abstract")
+          {
+            break;
+          }
+
+          var interfaces = superclass.$$implements;
+          if (interfaces)
+          {
+            for (let i=0; i<interfaces.length; i++)
+            {
+              qx.Interface.assert(clazz, interfaces[i], true);
+            }
+          }
+          superclass = superclass.superclass;
+        }
+      },
+
+      /**
        * Find a class by its name
        *
        * @signature function(name)
@@ -413,6 +490,134 @@ qx.Bootstrap.define(
       hasMixin : function(clazz, mixin)
       {
         return !! this.getByMixin(clazz, mixin);
+      },
+
+      /**
+       * Whether a given class directly includes an interface.
+       *
+       * This function will only return "true" if the interface was
+       * defined in the class declaration ({@link qx.Class#define})
+       * using the "implement" key.
+       *
+       * @param clazz {Class}
+       *   Class or instance to check
+       *
+       * @param iface {Interface}
+       *   The interface to check for
+       *
+       * @return {Boolean}
+       *   Whether the class includes the mixin directly.
+       */
+      hasOwnInterface : function(clazz, iface)
+      {
+        return clazz.$$implements && clazz.$$implements.includes(iface);
+      },
+
+
+      /**
+       * Returns the class or one of its super classes which contains the
+       * declaration of the given interface. Returns null if the interface is
+       * not specified anywhere.
+       *
+       * @signature function(clazz, iface)
+       *
+       * @param clazz {Class}
+       *   Class to look for the interface
+       *
+       * @param iface {Interface}
+       *   Interface to look for
+       *
+       * @return {Class | null}
+       *   The class which directly implements the given interface
+       */
+      getByInterface : qx.util.OOUtil.getByInterface,
+
+
+      /**
+       * Returns a list of all interfaces a given class has to implement.
+       *
+       * @param clazz {Class}
+       *   Class which should be inspected
+       *
+       * @return {Interface[]}
+       *   Array of interfaces this class implements
+       */
+      getInterfaces : function(clazz)
+      {
+        let list = [];
+
+        while (clazz)
+        {
+          if (clazz.$$implements)
+          {
+            list.push.apply(list, clazz.$$flatImplements);
+          }
+
+          clazz = clazz.superclass;
+        }
+
+        return list;
+      },
+
+
+      /**
+       * Whether a given class or any of its super classes includes a
+       * given interface.
+       *
+       * This function will return "true" if the interface was defined
+       * in the class declaration ({@link qx.Class#define}) of the
+       * class or any of its super classes using the "implement" key.
+       *
+       * @signature function(clazz, iface)
+       *
+       * @param clazz {Class}
+       *   Class to check
+       *
+       * @param iface {Interface}
+       *   The interface to check for
+       *
+       * @return {Boolean}
+       *   Whether the class includes the interface.
+       */
+      hasInterface : qx.util.OOUtil.hasInterface,
+
+
+      /**
+       * Whether a given class complies to an interface.
+       *
+       * Checks whether all methods defined in the interface are
+       * implemented. The class does not need to implement
+       * the interface explicitly in the <code>extend</code> key.
+       *
+       * @param obj {Object}
+       *   Class to check
+       *
+       * @param iface {Interface}
+       *   The interface to check for
+       *
+       * @return {Boolean}
+       *   Whether the class conforms to the interface.
+       */
+      implementsInterface : function(obj, iface)
+      {
+        let clazz = obj.constructor;
+
+        if (this.hasInterface(clazz, iface))
+        {
+          return true;
+        }
+
+        if (qx.Interface.objectImplements(obj, iface))
+        {
+          return true;
+        }
+
+        if (qx.Interface.classImplements(clazz, iface))
+        {
+          return true;
+        }
+
+        return false;
       }
     }
   });

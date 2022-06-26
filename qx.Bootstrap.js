@@ -922,10 +922,27 @@ function define(className, config)
     }
 
     // Include mixins
-    // Must be the last here, to detect conflicts
+    // Must be here, after members and properties, to detect conflicts
     if (config.include)
     {
       config.include.forEach(mixin => this.addMixin(clazz, mixin, false));
+    }
+  }
+
+  // Add interfaces
+  // We ensure that `this.addInterface` exists, because the default
+  // property storage implements an interface and during bootstrap
+  // time, we want to ignore that.
+  if (this.addInterface)
+  {
+    if (config.implement)
+    {
+      config.implement.forEach((iface) => this.addInterface(clazz, iface));
+    }
+
+    if (qx.core.Environment.get("qx.debug"))
+    {
+      this.validateAbstractInterfaces(clazz);
     }
   }
 
@@ -2205,6 +2222,14 @@ function addEvents(clazz, events, patch)
 function addMixin()
 {
   throw new Error("qx.Bootstrap.addMixin called; should not have been");
+}
+
+// Dummy function addInterface. This one is never called, as no class
+// defined with qx.Bootstrap.define() has any interfaces. The real one is
+// defined in qx.Class
+function addInterface()
+{
+  throw new Error("qx.Bootstrap.addInterface called; should not have been");
 }
 
 /**

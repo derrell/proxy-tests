@@ -1,5 +1,6 @@
 require("./qx.Bootstrap.js");
 require("./qx.core.propertystorage.Default.js");
+require("./qx.util.OOUtil.js");
 require("./qx.Class.js");
 require("./qx.core.PropertyDescriptorRegistry.js");
 require("./qx.core.Aspect.js");
@@ -9,6 +10,6 @@ require("./qx.core.propertystorage.ImmutableArray.js");
 require("./qx.core.propertystorage.ImmutableObject.js");
 require("./qx.core.propertystorage.ImmutableDataArray.js");
 require("./qx.core.Environment.js");
-require("./qx.util.OOUtil.js");
 require("./qx.Mixin.js");
+require("./qx.Interface.js");
 require("./test.js");
