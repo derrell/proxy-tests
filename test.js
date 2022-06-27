@@ -1216,10 +1216,15 @@ qx.Class.define(
     assert("property available after patch()",
            readyForPatch.dateProp instanceof Date);
 
+    //
+    // Test interfaces
+    //
+
+    // Test missing member variable from interface
     try
     {
       qx.Interface.define(
-        "tester.IInterfaceTest",
+        "tester.IInterfaceMemberVariableTest",
         {
           members :
           {
@@ -1228,7 +1233,7 @@ qx.Class.define(
         });
 
       qx.Class.define(
-        "tester.InterfaceTestFailMember",
+        "tester.InterfaceTestFailMemberVariable",
         {
           extend : tester.Object,
 
@@ -1237,13 +1242,106 @@ qx.Class.define(
             "qx.debug" : true
           },
 
-          implement : tester.IInterfaceTest
+          implement : tester.IInterfaceMemberVariableTest
         });
       assert("interface detects missing member variable", false);
     }
     catch(e)
     {
       assert("interface detects missing member variable", true);
+    }
+
+    // Test missing member function from interface
+    try
+    {
+      qx.Interface.define(
+        "tester.IInterfaceMemberFunctionTest",
+        {
+          members :
+          {
+            x : function() {}
+          }
+        });
+
+      qx.Class.define(
+        "tester.InterfaceTestFailFunctionVariable",
+        {
+          extend : tester.Object,
+
+          environment :
+          {
+            "qx.debug" : true
+          },
+
+          implement : tester.IInterfaceMemberFunctionTest
+        });
+      assert("interface detects missing member function", false);
+    }
+    catch(e)
+    {
+      assert("interface detects missing member function", true);
+    }
+
+    // Test member function throws error on bad input; not on good input
+    qx.Interface.define(
+      "tester.IInterfaceMemberFunctionParamValidationTest",
+      {
+        members :
+        {
+          x : function(num)
+          {
+            if (typeof num != "number")
+            {
+              throw new Error("Expected argument to be a number");
+            }
+          }
+        }
+      });
+
+    qx.Class.define(
+      "tester.InterfaceTestFailFunctionParamValidation",
+      {
+        extend : tester.Object,
+
+        environment :
+        {
+          "qx.debug" : true
+        },
+
+        implement : tester.IInterfaceMemberFunctionParamValidationTest,
+
+        members :
+        {
+          x : function(num)
+          {
+            console.log("function x got", num);
+          }
+        }
+      });
+
+    let paramValidation =
+        new tester.InterfaceTestFailFunctionParamValidation();
+
+    // ... good input
+    try
+    {
+      paramValidation.x(23);
+      assert("valid parameter is not caught by interface function", true);
+    }
+    catch(e)
+    {
+      assert("valid parameter is not caught by interface function", false);
+    }
+
+    // ... bad input
+    try
+    {
+      paramValidation.x("hello");
+      assert("invalid parameter is caught by interface function", false);
+    }
+    catch(e)
+    {
+      assert("invalid parameter is caught by interface function", true);
     }
 
     //
