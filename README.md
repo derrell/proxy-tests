@@ -11,13 +11,13 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
 
 # Legacy Class features currently implemented
 - [x] define
-- [ ] undefine
+- [x] undefine
 - [x] type
   - [x] abstract
   - [x] static
   - [x] singleton
 - [x] extend
-- [ ] implement [Interfaces]
+- [x] implement [Interfaces]
 - [x] include [Mixins]
   - [x] in-definition ("includes" key)
   - [x] addition of, via `include()`
@@ -28,7 +28,7 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
 - [x] members
 - [x] environment
 - [x] events
-- [ ] defer
+- [x] defer
   Notes: Call defer() late. See `addPendingDefer` and
   `executePendingDefers` in original qx.Bootstrap
 - [x] destruct
