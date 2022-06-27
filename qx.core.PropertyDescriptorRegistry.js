@@ -37,6 +37,21 @@ qx.Class.define(
        */
       __globalRegistry : {},
 
+      /**
+       * Remove a class' property descriptors from the global registry. This
+       * is done when a class is `undefine()`d.
+       */
+      unregister : function(className)
+      {
+        delete qx.core.PropertyDescriptorRegistry.__globalRegistry[className];
+      },
+
+      /**
+       * Obtain a reference to the global registry
+       *
+       * @return {Object}
+       *   The global registry map
+       */
       getRegistry : function()
       {
         return qx.core.PropertyDescriptorRegistry.__globalRegistry;

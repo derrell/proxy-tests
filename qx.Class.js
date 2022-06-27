@@ -176,6 +176,14 @@ qx.Bootstrap.define(
       define : qx.Bootstrap.define,
 
       /**
+       * Removes a class from qooxdoo defined by {@link #define}
+       *
+       * @param name {String}
+       *   Name of the class
+       */
+      undefine : qx.Bootstrap.undefine,
+
+      /**
        * Include all features of the given mixin into the class. The
        * mixin must not include any methods or properties that are
        * already available in the class. This would only be possible

@@ -1059,7 +1059,6 @@ function define(className, config)
   return clazz;
 }
 
-
 function _extend(className, config)
 {
   const           type = config.type || "class";
@@ -1467,6 +1466,51 @@ function _extend(className, config)
 
   return subclass.prototype.constructor;
 }
+
+/**
+ * Removes a class from qooxdoo defined by {@link #define}
+ *
+ * @param name {String}
+ *   Name of the class
+ */
+function undefine(name)
+{
+  // Delete the class from the registry
+  delete qx.Bootstrap.$$registry[name];
+
+  // Delete the class' property descriptors
+  qx.core.PropertyDescriptorRegistry.unregister(name);
+
+  // Delete the class reference from the namespaces and all empty namespaces
+  let ns = name.split(".");
+
+  // Build up an array containing all namespace objects including window
+  let objects = [window];
+  for (let i = 0; i < ns.length; i++)
+  {
+    objects.push(objects[i][ns[i]]);
+  }
+
+  // go through all objects and check for the constructor or empty namespaces
+  for (let i = objects.length - 1; i >= 1; i--)
+  {
+    var last = objects[i];
+    var parent = objects[i - 1];
+    if (
+      // The class being undefined, but parent classes in case it is a
+      // nested class that is being undefined
+      (i == objects.length - 1 && qx.Bootstrap.isFunction(last)) ||
+        qx.Bootstrap.objectGetLength(last) === 0)
+    {
+      delete parent[ns[i - 1]];
+    }
+    else
+    {
+      break;
+    }
+  }
+}
+
 
 /**
  * Attach members to a class
@@ -2778,16 +2822,176 @@ define(
          */
         setEnvironmentSetting : function(key, value)
         {
-         if (!qx.$$environment) {
-           qx.$$environment = {};
-         }
-         if (qx.$$environment[key] === undefined) {
-           qx.$$environment[key] = value;
-         }
-       },
+          if (!qx.$$environment)
+          {
+            qx.$$environment = {};
+          }
 
+          if (qx.$$environment[key] === undefined)
+          {
+            qx.$$environment[key] = value;
+          }
+        },
+
+        /*
+        -----------------------------------------------------------------------
+          OBJECT UTILITY FUNCTIONS
+        -----------------------------------------------------------------------
+        */
+
+        /**
+         * Get the number of own properties in the object.
+         *
+         * @param map {Object}
+         *   the map
+         *
+         * @return {Integer}
+         *   number of objects in the map
+         *
+         * @lint ignoreUnused(key)
+         */
+        objectGetLength(map)
+        {
+          return qx.Bootstrap.keys(map).length;
+        },
+
+        /**
+         * Inserts all keys of the source object into the target
+         * objects. Attention: The target map gets modified.
+         *
+         * @param target {Object}
+         *   target object
+         *
+         * @param source {Object}
+         *   object to be merged
+         *
+         * @param overwrite {Boolean ? true}
+         *   If enabled existing keys will be overwritten
+         *
+         * @return {Object}
+         *   Target with merged values from the source object
+         */
+        objectMergeWith(target, source, overwrite)
+        {
+          if (overwrite === undefined) {
+            overwrite = true;
+          }
+
+          for (let key in source)
+          {
+            if (overwrite || target[key] === undefined)
+            {
+              target[key] = source[key];
+            }
+          }
+
+          return target;
+        },
+
+        /**
+         * IE does not return "shadowed" keys even if they are defined directly
+         * in the object.
+         *
+         * @internal
+         * @type {String[]}
+         */
+        __shadowedKeys: [
+          "isPrototypeOf",
+          "hasOwnProperty",
+          "toLocaleString",
+          "toString",
+          "valueOf",
+          "propertyIsEnumerable",
+          "constructor"
+        ],
+
+        /**
+         * Get the keys of a map as array as returned by a "for ... in"
+         * statement.
+         *
+         * @signature function(map)
+         *
+         * @internal
+         *
+         * @param map {Object}
+         *   the map
+         *
+         * @return {Array}
+         *   array of the keys of the map
+         */
+        keys: {
+          ES5: Object.keys,
+
+          BROKEN_IE(map) {
+            if (map === null ||
+                (typeof map !== "object" && typeof map !== "function"))
+            {
+              throw new TypeError(
+                "Object.keys requires an object as argument.");
+            }
+
+            let arr = [];
+            let hasOwnProperty = Object.prototype.hasOwnProperty;
+            for (let key in map)
+            {
+              if (hasOwnProperty.call(map, key))
+              {
+                arr.push(key);
+              }
+            }
+
+            // IE does not return "shadowed" keys even if they are
+            // defined directly in the object. This is incompatible
+            // with the ECMA standard!! This is why this checks are
+            // needed.
+            var shadowedKeys = qx.Bootstrap.__shadowedKeys;
+            for (let i = 0, a = shadowedKeys, l = a.length; i < l; i++)
+            {
+              if (hasOwnProperty.call(map, a[i]))
+              {
+                arr.push(a[i]);
+              }
+            }
+
+            return arr;
+          },
+
+          default(map)
+          {
+            if (map === null ||
+                (typeof map !== "object" && typeof map !== "function"))
+            {
+              throw new TypeError(
+                "Object.keys requires an object as argument.");
+            }
+
+            let arr = [];
+
+            let hasOwnProperty = Object.prototype.hasOwnProperty;
+            for (let key in map)
+            {
+              if (hasOwnProperty.call(map, key))
+              {
+                arr.push(key);
+              }
+            }
+
+            return arr;
+          }
+        }[
+          typeof Object.keys === "function"
+            ? "ES5"
+            : (function () {
+                for (let key in { toString: 1 }) {
+                  return key;
+                }
+              })() !== "toString"
+            ? "BROKEN_IE"
+            : "default"
+        ],
 
         define,
+        undefine,
         addMembers,
         addProperties,
         addEvents,

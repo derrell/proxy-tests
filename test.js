@@ -55,6 +55,20 @@ qx.Class.define(
   });
 
 qx.Class.define(
+  "tester.ToBeUndefined",
+  {
+    extend : tester.Object
+  });
+assert("tester.ToBeUndefined exists",
+       typeof window.tester == "object" &&
+       typeof window.tester.ToBeUndefined == "function" &&
+       window.tester.ToBeUndefined.classname == "tester.ToBeUndefined");
+qx.Class.undefine("tester.ToBeUndefined");
+assert("tester.ToBeUndefined no longer exists",
+       typeof window.tester.ToBeUndefined == "undefined");
+
+
+qx.Class.define(
   "tester.Superclass",
   {
     extend : tester.Object,
