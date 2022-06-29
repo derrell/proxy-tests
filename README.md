@@ -138,3 +138,9 @@ This is a mostly fresh implementation of qx.Bootstrap and qx.Class which impleme
 
 # qx.data.Array features
 - [x] indexed values accessed as if it were a native array
+
+# Integration
+- [x] base -- don't include automatically after bootstrap; use one in Object.js
+- [ ] emulate `__emitCallCallback` from Property.js:1974
+  - [ ] "refresh"
+  - [ ] fire event.

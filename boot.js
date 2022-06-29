@@ -1,3 +1,4 @@
+PROXY_TESTS = true;
 require("./qx.Bootstrap.js");
 require("./qx.core.propertystorage.Default.js");
 require("./qx.util.OOUtil.js");
@@ -12,4 +13,5 @@ require("./qx.core.propertystorage.ImmutableDataArray.js");
 require("./qx.core.Environment.js");
 require("./qx.Mixin.js");
 require("./qx.Interface.js");
+require("./qx.core.MProperty.js");
 require("./test.js");

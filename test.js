@@ -1018,7 +1018,7 @@ qx.Class.define(
     let layoutChild = new tester.LayoutChild();
     assert("layoutChild.positive === 'inherit'",
            layoutChild.positive === "inherit");
-    layoutChild.refresh();
+    layoutChild.$$refresh();
     assert("layoutChild.positive === 2", layoutChild.positive === 2);
 
     // test dereference
@@ -1343,6 +1343,78 @@ qx.Class.define(
     {
       assert("invalid parameter is caught by interface function", true);
     }
+
+    //
+    // Test MProperty features
+    //
+    qx.Class.define(
+      "tester.MultiProp",
+      {
+        extend : tester.Object,
+        include : qx.core.MProperty,
+
+        properties :
+        {
+          a :
+          {
+            init : 1
+          },
+          b :
+          {
+            init : 2
+          },
+          c :
+          {
+            init : 3
+          }
+        },
+
+        members :
+        {
+          d : 100,
+
+          setD : function(value)
+          {
+            this.d = value;
+          }
+        }
+      });
+    let multiProp = new tester.MultiProp();
+    assert("multiprop 'a' has initial value", multiProp.a == 1);
+    assert("multiprop 'b' has initial value", multiProp.b == 2);
+    assert("multiprop 'c' has initial value", multiProp.c == 3);
+
+    // Test set()
+    multiProp.set("a", 10);
+    assert("multiprop 'a' has single set-altered value", multiProp.a == 10);
+    multiProp.set(
+      {
+        a : 20,
+        b : 21,
+        c : 22
+      });
+    assert("multiprop has all set-altered values",
+           multiProp.a == 20 && multiProp.b == 21 && multiProp.c == 22);
+
+    // Test get()
+    assert("multiprop 'a' get works", multiProp.get("a") == 20);
+    assert("multiprop 'b' get works", multiProp.get("b") == 21);
+    assert("multiprop 'c' get works", multiProp.get("c") == 22);
+
+    // Test reset()
+    multiProp.reset("a");
+    multiProp.reset("b");
+    multiProp.reset("c");
+    assert("multiprop 'a' has reset value", multiProp.a == 1);
+    assert("multiprop 'b' has reset value", multiProp.b == 2);
+    assert("multiprop 'c' has reset value", multiProp.c == 3);
+
+    // Test hand-written setter
+    assert("multiprop 'd' hand-generated initial value", multiProp.d == 100);
+    multiProp.set("d", 101);
+    assert("multiprop 'd' hand-generated altered value", multiProp.d == 101);
+    assert("multiprop 'd' hand-generated altered ", multiProp.get("d") == 101);
+
 
     //
     // Keep these delay tests last in the test...

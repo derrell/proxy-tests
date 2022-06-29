@@ -20,18 +20,26 @@
 
 ************************************************************************ */
 
-window = typeof window != "undefined" ? window : globalThis;
+if (typeof PROXY_TESTS != "undefined")
+{
+  window = typeof window != "undefined" ? window : globalThis;
+}
 
 // Bootstrap the Bootstrap static class
-qx =
+qx = Object.assign(
+  window.qx || {},
   {
     $$namespaceRoot : window,
 
     Bootstrap :
     {
+      /** True when initially bootstrapping */
+      $$BOOTSTRAPPING : true,
+
       /** @type {Map} Stores all defined classes */
       $$registry : {},
 
+      define,
       genericToString,
       createNamespace,
       setRoot,
@@ -54,7 +62,7 @@ qx =
        * @internal
        * @type {Map}
        */
-      __classToTypeMap: {
+      _classToTypeMap: {
         "[object String]": "String",
         "[object Array]": "Array",
         "[object Object]": "Object",
@@ -134,7 +142,7 @@ qx =
         }
       }
     }
-  };
+  });
 
 /**
  * Supported keys for property definitions
@@ -649,7 +657,7 @@ function define(className, config)
 
   if (qx.core.Environment.get("qx.debug"))
   {
-    __validatePropertyDefinitions(className, config);
+    _validatePropertyDefinitions(className, config);
   }
 
   // Normalize include to array
@@ -674,10 +682,6 @@ function define(className, config)
           `${className}: ` +
             `No 'extend' key, but 'type' is not 'static' ` +
             `(found ${config.type})`);
-      }
-      else if (! config.type)
-      {
-        console.log(`${className}: No 'extend' key; assuming type: 'static'`);
       }
     }
 
@@ -760,7 +764,7 @@ function define(className, config)
   ["@", "@construct", "@destruct"].forEach(
     (id) =>
     {
-      __attachAnno(clazz, id, null, config[id]);
+      _attachAnno(clazz, id, null, config[id]);
     });
 
   // Add singleton getInstance()
@@ -840,7 +844,7 @@ function define(className, config)
       });
 
     // Attach annotations
-    __attachAnno(clazz, "statics", key, config.statics["@" + key]);
+    _attachAnno(clazz, "statics", key, config.statics["@" + key]);
   }
 
   // Create a place to store the property descriptor registry for this class
@@ -874,7 +878,7 @@ function define(className, config)
   // Add a method to refresh all inheritable properties
   Object.defineProperty(
     clazz.prototype,
-    "refresh",
+    "$$refresh",
     {
       value        : function()
       {
@@ -949,7 +953,7 @@ function define(className, config)
   //
   // Store destruct onto class. We wrap their function (or an empty
   // function) in code that also handles any properties that
-  // require`dereference : true`
+  // require `dereference : true`
   //
   let             destruct = config.destruct || function() {};
 
@@ -1104,6 +1108,13 @@ function _extend(className, config)
 
   // This is a class
   subclass.$$type = "Class";
+  subclass.constructor = subclass; // point to self
+
+  // If its class type was specified, save it
+  if (config.type)
+  {
+    subclass.$$classtype = config.type;
+  }
 
   // Provide access to the superclass for base calls
   subclass.base = superclass;
@@ -1113,8 +1124,12 @@ function _extend(className, config)
 
   // Create the subclass' prototype as a copy of the superclass' prototype
   subclass.prototype = Object.create(superclass.prototype);
-  subclass.prototype.base = qx.Bootstrap.base;
   subclass.prototype.constructor = subclass;
+
+  if (qx.$$BOOTSTRAPPING || typeof PROXY_TESTS != "undefined")
+  {
+    subclass.prototype.base = qx.Bootstrap.base;
+  }
 
   // Save this object's properties
   Object.defineProperty(
@@ -1273,13 +1288,15 @@ function _extend(className, config)
                           `value=${value}`);
                     }
                   }
-                  else if (typeof property.check == "function" &&
-                           ! property.check(value))
+                  else if (typeof property.check == "function")
                   {
-                    throw new Error(
-                      `${prop}: ` +
-                        `Check function indicates wrong type value; ` +
-                        `value=${value}`);
+                    if (! property.check(value))
+                    {
+                      throw new Error(
+                        `${prop}: ` +
+                          `Check function indicates wrong type value; ` +
+                          `value=${value}`);
+                    }
                   }
                   else if (typeof property.check == "string")
                   {
@@ -1294,10 +1311,10 @@ function _extend(className, config)
                       // checks based on the jsdoc AST, flag whether
                       // we successfully parsed the type. If so, we'll
                       // stop the check when the error is thrown by
-                      // __checkValueAgainstJSdocAST(); If not, we
+                      // _checkValueAgainstJSdocAST(); If not, we
                       // want to fall through to additional checks.
                       bJSDocParsed = true;
-                      __checkValueAgainstJSdocAST(
+                      _checkValueAgainstJSdocAST(
                         prop, value, ast, property.check);
                     }
                     catch(e)
@@ -1340,7 +1357,8 @@ function _extend(className, config)
                   }
                   else
                   {
-                    throw new Error(`${prop}: Unrecognized check type`);
+                    throw new Error(
+                      `${prop}: Unrecognized check type: ${property.check}`);
                   }
                 }
 
@@ -1411,26 +1429,14 @@ function _extend(className, config)
               // section of the configuration passed to qx.Class.define
               if (! (prop in obj))
               {
-                // temporarily just display an error but don't throw
-                if (false)
-                {
-                  throw new Error(
-                    `In class '${obj.constructor.classname}', ` +
-                      `an attempt was made to  write to '${prop}' ` +
-                      "which is not declared in the 'members' section " +
-                      "of the configuration passed to qx.Class.define");
-                }
-                else
+                if (! prop.startsWith("$$"))
                 {
                   console.error(
-                    "ERROR: " +
+                    "Warning: " +
                     `In class '${obj.constructor.classname}', ` +
                       `an attempt was made to  write to '${prop}' ` +
                       "which is not declared in the 'members' section " +
-                      "of the configuration passed to qx.Class.define. " +
-                      "Dynamically adding members is deprecated. " +
-                      "This will be a fatal error in an upcoming release " +
-                      "of qooxdoo.");
+                      "of the configuration passed to qx.Class.define.");
                 }
               }
 
@@ -1453,7 +1459,6 @@ function _extend(className, config)
           });
 
         this.apply(target, proxy, args);
-
         return proxy;
       },
 
@@ -1585,7 +1590,7 @@ function addMembers(clazz, members, patch)
       if (member[annoKey] === undefined)
       {
         // An annotation for a superclass' member
-        __attachAnno(clazz, "members", annoKey, member[key]);
+        _attachAnno(clazz, "members", annoKey, member[key]);
       }
 
       continue;
@@ -1621,7 +1626,7 @@ function addMembers(clazz, members, patch)
       });
 
     // Attach annotations
-    __attachAnno(clazz, "members", key, members["@" + key]);
+    _attachAnno(clazz, "members", key, members["@" + key]);
   }
 }
 
@@ -2064,7 +2069,11 @@ function addProperties(clazz, properties, patch)
     addEvents(clazz, events, true);
 
     // Add annotations
-    __attachAnno(clazz, "properties", key, property["@"]);
+    _attachAnno(clazz, "properties", key, property["@"]);
+
+    // Add this property to the property maps
+    clazz.$$properties[key] = properties[key];
+    clazz.$$allProperties[key] = properties[key];
   }
 
   // Now handle the group properties we skipped while processing properties
@@ -2083,21 +2092,24 @@ function addProperties(clazz, properties, patch)
         if (! (prop in allProperties))
         {
           throw new Error(
-            `Property group '${key}': ` +
+            `Class ${clazz.classname}: ` +
+              `Property group '${key}': ` +
               `property '${prop}' does not exist`);
         }
 
         if (allProperties[prop].group)
         {
           throw new Error(
-            `Property group '${key}': ` +
+            `Class ${clazz.classname}: ` +
+              `Property group '${key}': ` +
               `can not add group '${prop}' to a group`);
         }
 
         if (property.themeable && ! allProperties[prop].themeable)
         {
           throw new Error(
-            `Property group '${key}': ` +
+            `Class ${clazz.classname}: ` +
+              `Property group '${key}': ` +
               `can not add themeable property '${prop}' to ` +
               "non-themeable group");
         }
@@ -2185,6 +2197,10 @@ function addProperties(clazz, properties, patch)
           enumerable   : false
         });
     }
+
+    // Add this property to the property maps
+    clazz.$$properties[key] = properties[key];
+    clazz.$$allProperties[key] = properties[key];
   }
 }
 
@@ -2493,7 +2509,7 @@ function getClass(value)
 
   let classString = Object.prototype.toString.call(value);
   return (
-    qx.Bootstrap.__classToTypeMap[classString] || classString.slice(8, -1)
+    qx.Bootstrap._classToTypeMap[classString] || classString.slice(8, -1)
   );
 }
 
@@ -2643,6 +2659,17 @@ function firstUp(str)
 }
 
 /**
+ * Convert the first character of the string to lower case.
+ *
+ * @param str {String} the string
+ * @return {String} the string with a lower case first character
+ */
+function firstLow(str)
+{
+  return str.charAt(0).toLowerCase() + str.substr(1);
+}
+
+/**
  * Attaches an annotation to a class
  *
  * @param clazz {Map} Static methods or fields
@@ -2650,7 +2677,7 @@ function firstUp(str)
  * @param key {String} Name of the annotated item
  * @param anno {Object} Annotation object
  */
-function __attachAnno(clazz, group, key, anno) {
+function _attachAnno(clazz, group, key, anno) {
   // If there's no annotation, we have nothing to do
   if (anno === undefined)
   {
@@ -2682,7 +2709,7 @@ function __attachAnno(clazz, group, key, anno) {
   }
 }
 
-function __validatePropertyDefinitions(className, config)
+function _validatePropertyDefinitions(className, config)
 {
   let             allowedKeys;
   let             properties = config.properties || {};
@@ -2746,7 +2773,7 @@ function __validatePropertyDefinitions(className, config)
   }
 }
 
-function __checkValueAgainstJSdocAST(prop, value, ast, check)
+function _checkValueAgainstJSdocAST(prop, value, ast, check)
 {
   console.log(
     `JSDoc AST of ${check}:\n` + JSON.stringify(ast, null, "  "));
@@ -2760,7 +2787,7 @@ function __checkValueAgainstJSdocAST(prop, value, ast, check)
 //
 // Pull ourself up by our bootstraps!
 //
-define(
+qx.Bootstrap.define(
   "qx.Bootstrap",
   {
     type : "static",
@@ -2833,6 +2860,150 @@ define(
           }
         },
 
+        /**
+         * Private list of classes which have a defer method that
+         * needs to be executed
+         */
+        __pendingDefers: [],
+
+        /**
+         * Adds a callback for a class so that it's defer method can be
+         * called, either after all classes are loaded or when absolutely
+         * necessary because of load-time requirements of other classes.
+         *
+         * @param clazz {Class}
+         *   Class to add a callback to
+         *
+         * @param cb {Function}
+         *   Callback function
+         */
+        addPendingDefer(clazz, cb)
+        {
+          if (qx.$$loader && qx.$$loader.delayDefer)
+          {
+            this.__pendingDefers.push(clazz);
+            clazz.$$pendingDefer = cb;
+          }
+          else
+          {
+            cb.call(clazz);
+          }
+        },
+
+        /**
+         * Executes the defer methods for classes which are required by the
+         * dependency information in dbClassInfo (which is a map in the format
+         * generated by qxcompiler). Defer methods are of course only executed
+         * once but they are always put off until absolutely necessary to
+         * avoid potential side effects and recursive and/or difficult to
+         * resolve dependencies.
+         *
+         * @param dbClassInfo {Object}
+         *   qxcompiler map
+         */
+        executePendingDefers(dbClassInfo)
+        {
+          let execute;
+          let executeForDbClassInfo;
+          let executeForClassName;
+          let getByName;
+
+          execute = function (clazz)
+          {
+            let cb = clazz.$$pendingDefer;
+            if (cb)
+            {
+              delete clazz.$$pendingDefer;
+              clazz.$$deferComplete = true;
+              cb.call(clazz);
+            }
+          };
+
+          executeForDbClassInfo = function (dbClassInfo)
+          {
+            if (dbClassInfo.environment)
+            {
+              let required = dbClassInfo.environment.required;
+              if (required) {
+                for (let key in required)
+                {
+                  let info = required[key];
+                  if (info.load && info.className)
+                  {
+                    executeForClassName(info.className);
+                  }
+                }
+              }
+            }
+
+            for (let key in dbClassInfo.dependsOn)
+            {
+              let depInfo = dbClassInfo.dependsOn[key];
+              if (depInfo.require || depInfo.usage === "dynamic")
+              {
+                executeForClassName(key);
+              }
+            }
+          };
+
+          executeForClassName = function (className)
+          {
+            let clazz = getByName(className);
+            if (! clazz)
+            {
+              return;
+            }
+            
+            if (clazz.$$deferComplete)
+            {
+              return;
+            }
+            let dbClassInfo = clazz.$$dbClassInfo;
+            if (dbClassInfo)
+            {
+              executeForDbClassInfo(dbClassInfo);
+            }
+            execute(clazz);
+          };
+
+          getByName = function (name)
+          {
+            let clazz = qx.Bootstrap.getByName(name);
+            if (! clazz)
+            {
+              let splits = name.split(".");
+              let part = splits[0];
+              let root =
+                qx.$$namespaceRoot && qx.$$namespaceRoot[part]
+                  ? qx.$$namespaceRoot
+                  : window;
+              let tmp = root;
+
+              for (let i = 0, len = splits.length - 1;
+                  tmp && i < len;
+                   i++, part = splits[i])
+              {
+                tmp = tmp[part];
+              }
+              if (tmp != root)
+              {
+                clazz = tmp;
+              }
+            }
+            return clazz;
+          };
+
+          if (! dbClassInfo)
+          {
+            let pendingDefers = this.__pendingDefers;
+            this.__pendingDefers = [];
+            pendingDefers.forEach(execute);
+            return;
+          }
+
+          executeForDbClassInfo(dbClassInfo);
+        },
+
         /*
         -----------------------------------------------------------------------
           OBJECT UTILITY FUNCTIONS
@@ -2895,7 +3066,7 @@ define(
          * @internal
          * @type {String[]}
          */
-        __shadowedKeys: [
+        _shadowedKeys: [
           "isPrototypeOf",
           "hasOwnProperty",
           "toLocaleString",
@@ -2944,7 +3115,7 @@ define(
             // defined directly in the object. This is incompatible
             // with the ECMA standard!! This is why this checks are
             // needed.
-            var shadowedKeys = qx.Bootstrap.__shadowedKeys;
+            var shadowedKeys = qx.Bootstrap._shadowedKeys;
             for (let i = 0, a = shadowedKeys, l = a.length; i < l; i++)
             {
               if (hasOwnProperty.call(map, a[i]))
@@ -2990,8 +3161,84 @@ define(
             : "default"
         ],
 
-        define,
+        /*
+        -----------------------------------------------------------------------
+          LOGGING UTILITY FUNCTIONS
+        -----------------------------------------------------------------------
+        */
+
+        $$logs: [],
+
+        /**
+         * Sending a message at level "debug" to the logger.
+         *
+         * @param object {Object}
+         *   Contextual object (either instance or static class)
+         *
+         * @param message {var}
+         *   Any number of arguments supported. An argument may have any
+         *   JavaScript data type. All data is serialized immediately and does
+         *   not keep references to other objects.
+         */
+        debug(object, message) {
+          qx.Bootstrap.$$logs.push(["debug", arguments]);
+        },
+
+        /**
+         * Sending a message at level "info" to the logger.
+         *
+         * @param object {Object}
+         *   Contextual object (either instance or static class)
+         *
+         * @param message {var}
+         *   Any number of arguments supported. An argument may have any
+         *   JavaScript data type. All data is serialized immediately and does
+         *   not keep references to other objects.
+         */
+        info(object, message) {
+          qx.Bootstrap.$$logs.push(["info", arguments]);
+        },
+
+        /**
+         * Sending a message at level "warn" to the logger.
+         *
+         * @param object {Object}
+         *   Contextual object (either instance or static class)
+         *
+         * @param message {var}
+         *   Any number of arguments supported. An argument may have any
+         *   JavaScript data type. All data is serialized immediately and does
+         *   not keep references to other objects.
+         */
+        warn(object, message) {
+          qx.Bootstrap.$$logs.push(["warn", arguments]);
+        },
+
+        /**
+         * Sending a message at level "error" to the logger.
+         *
+         * @param object {Object}
+         *   Contextual object (either instance or static class)
+         *
+         * @param message {var}
+         *   Any number of arguments supported. An argument may have any
+         *   JavaScript data type. All data is serialized immediately and does
+         *   not keep references to other objects.
+         */
+        error(object, message) {
+          qx.Bootstrap.$$logs.push(["error", arguments]);
+        },
+
+        /**
+         * Prints the current stack trace at level "info"
+         *
+         * @param object {Object}
+         *   Contextual object (either instance or static class)
+         */
+        trace(object) {},
+
         undefine,
+        firstLow,
         addMembers,
         addProperties,
         addEvents,
