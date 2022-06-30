@@ -639,6 +639,7 @@ let propertyMethodFactory =
 // Default comparison for whether to call apply method and generate an event
 let isEqual = (a, b) => a === b;
 
+
 function define(className, config)
 {
   let             allowedKeys;
@@ -1092,7 +1093,7 @@ function _extend(className, config)
     //
     subclass = function(...args)
     {
-      config.construct.call(this, ...args);
+      return config.construct.apply(this, args);
     };
   }
   else if (config.type == "static")
@@ -1105,8 +1106,14 @@ function _extend(className, config)
   }
   else
   {
+    // It's a normal class but no constructor was provided. Create one
+    // that simply calls the superclass constructor.
     subclass = function()
     {
+      if (this.base)
+      {
+        this.base(arguments);
+      }
     };
   }
 
@@ -1335,59 +1342,78 @@ function _extend(className, config)
                   }
                   else if (typeof property.check == "string")
                   {
-                    // First try to parse the check string as JSDoc
-                    let             bJSDocParsed = false;
-                    try
+                    if (qx.Class.isDefined(property.check))
                     {
-                      const           { parse } = require("jsdoctypeparser");
-                      const           ast = parse(property.check);
-
-                      // Temporarily, while we don't yet support
-                      // checks based on the jsdoc AST, flag whether
-                      // we successfully parsed the type. If so, we'll
-                      // stop the check when the error is thrown by
-                      // _checkValueAgainstJSdocAST(); If not, we
-                      // want to fall through to additional checks.
-                      bJSDocParsed = true;
-                      _checkValueAgainstJSdocAST(
-                        prop, value, ast, property.check);
+                      qx.core.Assert.assertInstance(
+                        value,
+                        qx.Class.getByName(property.check),
+                        "Expected value to be an instance of " +
+                          property.check);
                     }
-                    catch(e)
+                    else if (qx.Interface &&
+                             qx.Interface.isDefined(property.check))
                     {
-                      // If we successfully parsed, rethrow the check error
-                      if (bJSDocParsed)
+                        qx.core.Assert.assertInterface(
+                          value,
+                          qx.Class.getByName(property.check),
+                          "Expected value to implement " + property.check);
+                    }
+                    else
+                    {
+                      // Next  try to parse the check string as JSDoc
+                      let             bJSDocParsed = false;
+                      try
                       {
-                        throw e;
+                        const           { parse } = require("jsdoctypeparser");
+                        const           ast = parse(property.check);
+
+                        // Temporarily, while we don't yet support
+                        // checks based on the jsdoc AST, flag whether
+                        // we successfully parsed the type. If so, we'll
+                        // stop the check when the error is thrown by
+                        // _checkValueAgainstJSdocAST(); If not, we
+                        // want to fall through to additional checks.
+                        bJSDocParsed = true;
+                        _checkValueAgainstJSdocAST(
+                          prop, value, ast, property.check);
+                      }
+                      catch(e)
+                      {
+                        // If we successfully parsed, rethrow the check error
+                        if (bJSDocParsed)
+                        {
+                          throw e;
+                        }
+
+                        // Couldn't parse JSDoc so the check string is
+                        // not a JSDoc one. Fall through to next
+                        // possible use of the check string.
+                        //
+                        // FALL THROUGH
                       }
 
-                      // Couldn't parse JSDoc so the check string is
-                      // not a JSDoc one. Fall through to next
-                      // possible use of the check string.
-                      //
-                      // FALL THROUGH
-                    }
+                      // JSDoc parsing failed, so try executing the
+                      // string as a function
+                      let             fCheck;
+                      try
+                      {
+                        fCheck = new Function(
+                          "value", `return (${property.check});`);
+                      }
+                      catch(e)
+                      {
+                        throw new Error(
+                          `${prop}: ` +
+                            `Error running check: ${property.check}`, e);
+                      }
 
-                    // JSDoc parsing failed, so try executing the
-                    // string as a function
-                    let             fCheck;
-                    try
-                    {
-                      fCheck = new Function(
-                        "value", `return (${property.check});`);
-                    }
-                    catch(e)
-                    {
-                      throw new Error(
-                        `${prop}: ` +
-                          `Error running check: ${property.check}`, e);
-                    }
-
-                    if (! fCheck(value))
-                    {
-                      throw new Error(
-                        `${prop}: ` +
-                          `Check code indicates wrong type value; ` +
-                          `value=${value}`);
+                      if (! fCheck(value))
+                      {
+                        throw new Error(
+                          `${prop}: ` +
+                            `Check code indicates wrong type value; ` +
+                            `value=${value}`);
+                      }
                     }
                   }
                   else

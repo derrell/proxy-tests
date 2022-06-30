@@ -73,7 +73,7 @@ qx.Class.define(
   {
     extend : tester.Object,
 
-    construct : function(bRunning)
+    construct : function(bRunning = false)
     {
       console.log(`Superclass constructor: bRunning=${bRunning}`);
       this.running = bRunning;
@@ -1415,6 +1415,18 @@ qx.Class.define(
     assert("multiprop 'd' hand-generated altered value", multiProp.d == 101);
     assert("multiprop 'd' hand-generated altered ", multiProp.get("d") == 101);
 
+    // Test missing constructor in subclass still calls superclass constructor
+    qx.Class.define(
+      "tester.SubclassNoConstructor",
+      {
+        extend : tester.Superclass,
+
+        members :
+        {
+          something : "hi there"
+        }
+      });
+    let subclassNoConstructor = new tester.SubclassNoConstructor(true);
 
     //
     // Keep these delay tests last in the test...
