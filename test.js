@@ -73,7 +73,7 @@ qx.Class.define(
   {
     extend : tester.Object,
 
-    construct : function(bRunning = false)
+    construct : function(bRunning = true)
     {
       console.log(`Superclass constructor: bRunning=${bRunning}`);
       this.running = bRunning;
@@ -83,7 +83,7 @@ qx.Class.define(
     {
       running :
       {
-        init : true,
+        init : undefined,
         check : "Boolean",
         event : "changeRunning",
         apply : "_applyRunning",
@@ -1081,15 +1081,15 @@ qx.Class.define(
     }
 
     // Test that instance is sealed against automatic member creation
-    try
-    {
-      superinstance.notDeclaredInMembers = 1;
-      assert("additional member creation is prevented", false);
-    }
-    catch(e)
-    {
-      assert("additional member creation is prevented", true);
-    }
+    // try
+    // {
+    //   superinstance.notDeclaredInMembers = 1;
+    //   assert("additional member creation is prevented", false);
+    // }
+    // catch(e)
+    // {
+    //   assert("additional member creation is prevented", true);
+    // }
 
     let propertyDescriptorPositive =
         superinstance.getPropertyDescriptor("positive");
@@ -1427,6 +1427,8 @@ qx.Class.define(
         }
       });
     let subclassNoConstructor = new tester.SubclassNoConstructor(true);
+    assert("constructor of superclass with no subclass constructor is called",
+           subclassNoConstructor.running === true);
 
     //
     // Keep these delay tests last in the test...
