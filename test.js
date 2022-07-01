@@ -1458,7 +1458,4 @@ qx.Class.define(
            new Date().getTime() > startTime.getTime() + 1000);
 
     console.log(`\nTest failures: ${assert.failures}`);
-    console.log(
-      "(Expect one failure right now, for deprecated " +
-        "member creation prevention)");
   })();
